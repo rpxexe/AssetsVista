@@ -1,0 +1,95 @@
+import dbconnect from "@/lib/dbconnect";
+import { CompanyModel } from "@/models/setting/Companies.model";
+
+import mongoose from "mongoose";
+
+import { NextRequest, NextResponse } from "next/server";
+
+export async function GET(
+  req: NextRequest,
+  context: { params: { id: string } }
+) {
+  const { params } = context; // Extract params from context
+
+  await dbconnect();
+
+  if (!params?.id || !mongoose.Types.ObjectId.isValid(params.id)) {
+    return NextResponse.json(
+      { success: false, message: "Invalid or missing Company ID" },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const Company = await CompanyModel.findById(params.id);
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Company fetched successfully",
+        data: Company,
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Error while fetching Company", error);
+    return NextResponse.json(
+      { success: false, message: "Error while fetching Company" },
+      { status: 500 }
+    );
+  }
+}
+
+
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  await dbconnect();
+
+  const { id } = params;
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    return NextResponse.json(
+      { success: false, message: "Invalid or missing Company ID" },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const data = await req.json();
+
+    // Update asset
+    const updatedCompany = await CompanyModel.findByIdAndUpdate(
+      id,
+      {
+        name:data.name,
+        email:data.email,
+      },
+      { new: true, runValidators: true } // Return updated document and apply validation
+    );
+
+    if (!updatedCompany) {
+      return NextResponse.json(
+        { success: false, message: "Company not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Company updated successfully",
+        asset: updatedCompany,
+      },
+      { status: 200 }
+    );
+  } catch (error: any) {
+    console.error("Error while updating Company", error);
+    return NextResponse.json(
+      { success: false, message: "Server error", error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
