@@ -1,6 +1,4 @@
-import mongoose,{Schema,Document,Model} from "mongoose";
-import { Asset, AssetModel } from "../Assets.model";
-import { Accessories, AccessoriesModel } from "../Accessories.model";
+import mongoose, { Document, Model, Schema } from "mongoose";
 
 
 export interface Location extends Document{

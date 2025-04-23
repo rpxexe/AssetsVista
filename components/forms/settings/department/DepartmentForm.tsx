@@ -10,7 +10,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -31,8 +30,6 @@ import { z } from "zod";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { url } from "inspector";
 import CompanyBox from "@/components/dropDowns/company.dropdown";
 import LocationBox from "@/components/dropDowns/location.dropdown";
 

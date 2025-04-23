@@ -1,7 +1,7 @@
 import dbconnect from "@/lib/dbconnect";
 import { AssetModel } from "@/models/Assets.model";
 import { SupplierModel } from "@/models/setting/Suppliers.model";
-import mongoose from "mongoose";
+
 import { NextRequest, NextResponse } from "next/server";
  export async function POST(req:Request){
     await dbconnect();

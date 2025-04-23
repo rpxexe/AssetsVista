@@ -4,10 +4,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
-import { format } from "date-fns";
-import { CalendarIcon, Edit, Loader2 } from "lucide-react";
+
+import {  Edit, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+
 import { ApiResponse } from "@/types/ApiResponse";
 import {
   Dialog,
@@ -28,16 +28,9 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import CompanyBox from "@/components/dropDowns/company.dropdown";
-import ManufacturerBox from "@/components/dropDowns/manufacturer.dropdown";
-import SupplierBox from "@/components/dropDowns/supplier.dropdown";
+
 import CategoryBox from "@/components/dropDowns/category.dropdown";
 
 // Form Schema

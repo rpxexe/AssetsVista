@@ -105,7 +105,7 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
   const {
     data: licenseData,
     isLoading: isFetching,
-    error,
+    
   } = useQuery({
     queryKey: ["license", id],
     queryFn: () => fetchLicense(id),

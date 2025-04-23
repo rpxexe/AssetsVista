@@ -24,14 +24,13 @@ import { ApiResponse } from "@/types/ApiResponse";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios, { AxiosError } from "axios";
 
-import { Edit, Loader2, PlusIcon } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import { Edit, Loader2 } from "lucide-react";
+import React, { useEffect} from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery } from "@tanstack/react-query";
 
 const formSchema = z.object({

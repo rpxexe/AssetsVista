@@ -1,10 +1,4 @@
-import AssetModelBox from "@/components/dropDowns/assetModel.dropdown";
-import CompanyBox from "@/components/dropDowns/company.dropdown";
-import DepartmentBox from "@/components/dropDowns/department.dropdown";
-import LocationBox from "@/components/dropDowns/location.dropdown";
-import ManufacturerBox from "@/components/dropDowns/manufacturer.dropdown";
-import StatusBox from "@/components/dropDowns/status.dropdown";
-import SupplierBox from "@/components/dropDowns/supplier.dropdown";
+
 import {
   DialogClose,
   DialogFooter,
@@ -23,25 +17,20 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+
 import { ApiResponse } from "@/types/ApiResponse";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios, { AxiosError } from "axios";
-import { format } from "date-fns";
-import { CalendarIcon, Loader2, PlusIcon } from "lucide-react";
+
+import {  Loader2, PlusIcon } from "lucide-react";
 import React, {  useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import CategoryBox from "@/components/dropDowns/category.dropdown";
 const formSchema = z.object({
   category: z.string().nonempty({

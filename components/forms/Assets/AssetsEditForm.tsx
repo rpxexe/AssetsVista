@@ -99,7 +99,6 @@ type Editprops = {
 const AssetEditForm:React.FC<Editprops> = ({id}) => {
   const { toast } = useToast();
   const [loading, setIsLoading] = useState(false);
-  const [isFetching, setIsFetching] = useState(true);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -127,8 +126,6 @@ const AssetEditForm:React.FC<Editprops> = ({id}) => {
     };
   const {
       data: assetData,
-      isLoading,
-      error,
     } = useQuery({
       queryKey: ["asset", id], // Cache the query based on `id`
       queryFn: () => fetchAsset(id),

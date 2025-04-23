@@ -2,7 +2,6 @@ import dbconnect from "@/lib/dbconnect";
 import { AssetModel } from "@/models/Assets.model";
 import { AssetModel_Model } from "@/models/setting/AssetModels.model";
 import { CategoryModel } from "@/models/setting/Categories.model";
-import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: Request) {

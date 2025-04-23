@@ -2,7 +2,7 @@
 
 import LicenseForm from "@/components/forms/Licenses/LicenseForm";
 import { LicenseTable } from "@/components/tables/licenses";
-import {} from "@/components/ui/dialog";
+
 import { FileChartPie } from "lucide-react";
 
 const Licenses = () => {

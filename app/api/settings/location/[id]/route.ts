@@ -1,7 +1,4 @@
 import dbconnect from "@/lib/dbconnect";
-import { CompanyModel } from "@/models/setting/Companies.model";
-
-import { DepartmentModel } from "@/models/setting/Departments.model";
 import { LocationModel } from "@/models/setting/Locations.model";
 
 import mongoose from "mongoose";

@@ -1,5 +1,4 @@
 import dbconnect from "@/lib/dbconnect";
-import { StatusModel } from "@/models/setting/Status.model";
 import { SupplierModel } from "@/models/setting/Suppliers.model";
 
 

@@ -1,4 +1,4 @@
-import mongoose,{ Schema,Document,Model } from 'mongoose';
+import mongoose, { Document, Model, Schema } from 'mongoose';
 
 export interface Asset extends Document {
   company: mongoose.Schema.Types.ObjectId;

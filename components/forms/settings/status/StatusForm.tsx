@@ -27,7 +27,6 @@ import { useToast } from "@/hooks/use-toast";
 import { ApiResponse } from "@/types/ApiResponse";
 import { useState } from "react";
 import { Loader2, PlusIcon } from "lucide-react";
-import { StatusTable } from "@/components/tables/status";
 const formSchema = z.object({
   name: z.string().min(2, {
     message: "Status name must be at least 2 characters.",

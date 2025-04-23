@@ -1,4 +1,4 @@
-import mongoose, { Schema, Model, Document } from "mongoose";
+import mongoose, { Document, Model, Schema } from "mongoose";
 
 export interface License extends Document {
   name: string;

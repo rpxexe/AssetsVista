@@ -1,9 +1,8 @@
 "use client";
 
 import DepartmentForm from "@/components/forms/settings/department/DepartmentForm";
-import { CompanyTable } from "@/components/tables/companies";
 import { DepartmentTable } from "@/components/tables/departments";
-import { Building2, Users } from "lucide-react";
+import { Users } from "lucide-react";
 
 const Department = () => {
   return (

@@ -1,4 +1,4 @@
-import mongoose,{Schema,Model,Document} from "mongoose";
+import mongoose, { Document, Model, Schema } from "mongoose";
 
 
 export interface Manufacturer extends Document{

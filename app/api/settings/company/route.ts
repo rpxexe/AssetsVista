@@ -1,7 +1,6 @@
 import dbconnect from "@/lib/dbconnect";
 import { CompanyModel } from "@/models/setting/Companies.model";
 import { AssetModel } from "@/models/Assets.model";
-import mongoose from "mongoose";
 import { LicenseModel } from "@/models/Licenses.model";
 import { DepartmentModel } from "@/models/setting/Departments.model";
 import { NextRequest, NextResponse } from "next/server";
