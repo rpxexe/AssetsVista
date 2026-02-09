@@ -214,7 +214,7 @@ const AssetEditForm:React.FC<Editprops> = ({id}) => {
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-full max-w-[550px] p-0">
-        <ScrollArea className="h-[90%] w-full p-6">
+        <ScrollArea className="h-[80%] w-full p-6">
           <DialogHeader>
             <DialogTitle className="text-2xl">Edit Asset</DialogTitle>
           </DialogHeader>

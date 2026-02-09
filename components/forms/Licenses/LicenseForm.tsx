@@ -1,9 +1,9 @@
-import AssetModelBox from "@/components/dropDowns/assetModel.dropdown";
+
 import CompanyBox from "@/components/dropDowns/company.dropdown";
-import DepartmentBox from "@/components/dropDowns/department.dropdown";
-import LocationBox from "@/components/dropDowns/location.dropdown";
+
+
 import ManufacturerBox from "@/components/dropDowns/manufacturer.dropdown";
-import StatusBox from "@/components/dropDowns/status.dropdown";
+
 import SupplierBox from "@/components/dropDowns/supplier.dropdown";
 import {
   DialogClose,

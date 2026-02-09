@@ -1,8 +1,13 @@
+// 
+import { clerkMiddleware } from '@clerk/nextjs/server'
 
-import { withMiddlewareAuthRequired } from "@auth0/nextjs-auth0/edge";
-import { NextResponse, NextRequest } from "next/server";
-export default withMiddlewareAuthRequired();
+export default clerkMiddleware()
+
 export const config = {
-  matcher: ["/admin", "/assets/:path*"],
-  // "/api/:path*"
-};
+  matcher: [
+    // Skip Next.js internals and all static files, unless found in search params
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // Always run for API routes
+    '/(api|trpc)(.*)',
+  ],
+}

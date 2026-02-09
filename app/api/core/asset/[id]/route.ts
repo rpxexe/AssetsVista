@@ -13,13 +13,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   req: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  const { params } = context; // Extract params from context
+  const { id } = await context.params;
 
   await dbconnect();
 
-  if (!params?.id || !mongoose.Types.ObjectId.isValid(params.id)) {
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
       { success: false, message: "Invalid or missing asset ID" },
       { status: 400 }
@@ -37,7 +37,7 @@ export async function GET(
       { path: "department", select: "name" },
     ];
 
-    const asset = await AssetModel.findById(params.id).populate(query).lean();
+    const asset = await AssetModel.findById(id).populate(query).lean();
 
     return NextResponse.json(
       { success: true, message: "Asset fetched successfully", data: asset },
@@ -56,11 +56,10 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+   context: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await context.params; // ✅ await params
   await dbconnect();
-
-  const { id } = params;
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
       { success: false, message: "Invalid or missing asset ID" },

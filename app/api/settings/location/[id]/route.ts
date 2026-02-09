@@ -7,13 +7,14 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   req: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  const { params } = context; // Extract params from context
+  // Extract params from context
 
   await dbconnect();
+  const { id } = await context.params; 
 
-  if (!params?.id || !mongoose.Types.ObjectId.isValid(params.id)) {
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
       { success: false, message: "Invalid or missing Location ID" },
       { status: 400 }
@@ -21,7 +22,7 @@ export async function GET(
   }
 
   try {
-    const Location = await LocationModel.findById(params.id);
+    const Location = await LocationModel.findById(id);
 
     return NextResponse.json(
       {
@@ -44,11 +45,11 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   await dbconnect();
 
-  const { id } = params;
+  const { id } = await context.params; 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
       { success: false, message: "Invalid or missing Location ID" },
