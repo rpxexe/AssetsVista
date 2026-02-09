@@ -4,9 +4,6 @@ import * as React from "react";
 import {
   Building2,
   Cable,
-  Calculator,
-  Calendar,
-  CreditCard,
   Droplets,
   Factory,
   FileChartPie,
@@ -15,11 +12,7 @@ import {
   LibraryBig,
   MapPin,
   Microchip,
-  PieChart,
   Ratio,
-  Settings,
-  Smile,
-  User,
   Users,
 } from "lucide-react";
 
@@ -31,9 +24,8 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-  CommandShortcut,
 } from "@/components/ui/command";
-import { Input } from "./ui/input";
+
 import { Button } from "./ui/button";
 
 export function CommandDialogForm() {

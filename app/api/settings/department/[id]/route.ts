@@ -10,13 +10,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   req: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  const { params } = context; // Extract params from context
+  // Extract params from context
 
   await dbconnect();
-
-  if (!params?.id || !mongoose.Types.ObjectId.isValid(params.id)) {
+  const { id } = await context.params; 
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
       { success: false, message: "Invalid or missing Department ID" },
       { status: 400 }
@@ -47,11 +47,11 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   await dbconnect();
 
-  const { id } = params;
+  const { id } = await context.params; 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
       { success: false, message: "Invalid or missing Department ID" },

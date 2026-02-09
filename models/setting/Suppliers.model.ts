@@ -1,6 +1,7 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
 
 export interface Supplier extends Document{
+    userId?: string;
     name:string;
     address:string;
     contact_name:string;
@@ -14,6 +15,7 @@ export interface Supplier extends Document{
 }
 const SupplierSchema: Schema<Supplier> = new Schema(
   {
+    userId: { type: String, index: true },
     name: {
       type: String,
       required: true,
