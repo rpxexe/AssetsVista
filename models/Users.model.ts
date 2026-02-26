@@ -3,7 +3,6 @@ import mongoose, { Document, Model, Schema } from "mongoose";
 
 
 export interface IUser extends Document {
-  _id: Schema.Types.ObjectId;
   auth0Id: string;
   email: string;
   name: string;
