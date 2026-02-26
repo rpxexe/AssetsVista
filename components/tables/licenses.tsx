@@ -103,7 +103,7 @@ export function LicenseTable() {
       const response = await axios.get("/api/core/license");
       return response.data.data;
     },
-    refetchInterval: 3000, 
+    refetchInterval: 3000,
   });
 
   const handleDelete = async (id: string) => {
@@ -196,7 +196,7 @@ export function LicenseTable() {
             month: "short",
             day: "2-digit",
           }).format(date);
-        } catch (error) {
+        } catch {
           return "Invalid date";
         }
       },
@@ -219,7 +219,7 @@ export function LicenseTable() {
             month: "short",
             day: "2-digit",
           }).format(date);
-        } catch (error) {
+        } catch {
           return "Invalid date";
         }
       },
@@ -243,7 +243,7 @@ export function LicenseTable() {
             month: "short",
             day: "2-digit",
           }).format(date);
-        } catch (error) {
+        } catch {
           return "Invalid date";
         }
       },
@@ -396,9 +396,9 @@ export function LicenseTable() {
                         {header.isPlaceholder
                           ? null
                           : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
                       </TableHead>
                     );
                   })}

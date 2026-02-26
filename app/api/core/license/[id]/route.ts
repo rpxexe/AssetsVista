@@ -45,7 +45,7 @@ export async function GET(
 
     const license = await LicenseModel.findById(id).populate(query).lean();
 
-    
+
     if (!license) {
       return NextResponse.json(
         { success: false, message: "License not found" },
@@ -101,7 +101,7 @@ export async function PUT(
       CategoryModel.findOne({ name: data.categoryName }),
       SupplierModel.findOne({ name: data.supplierName }),
       ManufacturerModel.findOne({ name: data.manufacturerName }),
-      
+
     ]);
 
     // Check if all required models exist
@@ -163,10 +163,10 @@ export async function PUT(
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error while updating License", error);
     return NextResponse.json(
-      { success: false, message: "Server error", error: error.message },
+      { success: false, message: "Server error", error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

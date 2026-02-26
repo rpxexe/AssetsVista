@@ -25,8 +25,8 @@ import { ApiResponse } from "@/types/ApiResponse";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios, { AxiosError } from "axios";
 
-import { Edit, Loader2, PlusIcon } from "lucide-react";
-import React, {  useEffect, useState } from "react";
+import { Edit, Loader2 } from "lucide-react";
+import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -46,8 +46,8 @@ const formSchema = z.object({
     }),
   type: z.string().nonempty({
     message: "Type can't be Empty",
-  })  ,
-  email:z.boolean({
+  }),
+  email: z.boolean({
     required_error: "Email is required",
   }),
 });
@@ -61,38 +61,37 @@ const CategoryEditForm: React.FC<EditProps> = ({ id }) => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name:"",
-        type:"",
-        email:false,
+      name: "",
+      type: "",
+      email: false,
     },
   });
-  
-    const fetchCategory = async (id: string) => {
-      const { data } = await axios.get(`/api/settings/category/${id}`);
-      return data.data;
-    };
-  
-    const {
-      data: categoryData,
-      isLoading: isFetching,
-      error,
-    } = useQuery({
-      queryKey: ["assetmodel", id],
-      queryFn: () => fetchCategory(id),
-      enabled: !!id,
-    });
-  
-    useEffect(() => {
-      if (categoryData) {
-        form.reset({
-          name: categoryData.name,
-          type: categoryData.type,
-          email: categoryData.email,
-        });
-      }
-    }, [categoryData]);
-  
- 
+
+  const fetchCategory = async (id: string) => {
+    const { data } = await axios.get(`/api/settings/category/${id}`);
+    return data.data;
+  };
+
+  const {
+    data: categoryData,
+    isLoading: isFetching,
+  } = useQuery({
+    queryKey: ["assetmodel", id],
+    queryFn: () => fetchCategory(id),
+    enabled: !!id,
+  });
+
+  useEffect(() => {
+    if (categoryData) {
+      form.reset({
+        name: categoryData.name,
+        type: categoryData.type,
+        email: categoryData.email,
+      });
+    }
+  }, [categoryData, form]);
+
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       const response = await axios.put<ApiResponse>(
@@ -100,7 +99,7 @@ const CategoryEditForm: React.FC<EditProps> = ({ id }) => {
         {
           name: values.name,
           type: values.type,
-            email: values.email,
+          email: values.email,
         }
       );
 

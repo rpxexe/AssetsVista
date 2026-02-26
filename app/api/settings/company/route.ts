@@ -8,26 +8,27 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: Request) {
   await dbconnect();
   try {
-    const { name, email} = await req.json();
+    const { name, email } = await req.json();
     const company = new CompanyModel({
       name,
       email
     });
     await company.save();
-  
+
     return Response.json(
       {
         success: true,
         message: "Company created successfully",
-        
+
       },
       { status: 201 }
     );
-  } catch (error:any) {
+  } catch (error: unknown) {
     console.error("Error while creating Company", error);
-    if (error.code === 11000) {
-      const key = Object.keys(error.keyValue)[0];
-      const value = error.keyValue[key];
+    const mongoError = error as { code?: number; keyValue?: Record<string, string> };
+    if (mongoError.code === 11000) {
+      const key = Object.keys(mongoError.keyValue ?? {})[0];
+      const value = mongoError.keyValue?.[key];
       return Response.json(
         {
           success: false,
@@ -50,17 +51,17 @@ export async function GET() {
   try {
     ;
     const company = await CompanyModel.find().sort({ createdAt: -1 });
-    const companyWithAllDetails= await Promise.all(
-      company.map(async (comp)=>{
-        const assets=await AssetModel.countDocuments({company:comp._id})
-        const licenses= await LicenseModel.countDocuments({company:comp._id})
+    const companyWithAllDetails = await Promise.all(
+      company.map(async (comp) => {
+        const assets = await AssetModel.countDocuments({ company: comp._id })
+        const licenses = await LicenseModel.countDocuments({ company: comp._id })
         const department = await DepartmentModel.countDocuments({
           company: comp._id,
         });
-        return {...comp.toObject(),assets,licenses,department}
+        return { ...comp.toObject(), assets, licenses, department }
       })
     )
-    
+
     return Response.json(
       {
         success: true,
@@ -103,9 +104,9 @@ export async function DELETE(req: NextRequest) {
       { message: "Company deleted successfully", deletedCompany },
       { status: 200 }
     );
-  } catch (error:any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { message: "Error deleting Company", error: error.message },
+      { message: "Error deleting Company", error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

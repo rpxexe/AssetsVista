@@ -24,7 +24,7 @@ export async function GET(
   try {
     const query = [
       { path: "category", select: "name" },
-     
+
     ];
 
     const asset = await AssetModel_Model.findById(id).populate(query).lean();
@@ -46,7 +46,7 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  context: { params: Promise<{ id: string } >}
+  context: { params: Promise<{ id: string }> }
 ) {
   await dbconnect();
 
@@ -76,7 +76,7 @@ export async function PUT(
       category
     ] = await Promise.all([
       CategoryModel.findOne({ name: data.categoryName }),
-      
+
     ]);
 
     // Check if all required models exist
@@ -90,9 +90,9 @@ export async function PUT(
     const updatedAssetModel = await AssetModel_Model.findByIdAndUpdate(
       id,
       {
-        name:data.name,
+        name: data.name,
         category: category._id,
-        model_no:data.model_no,
+        model_no: data.model_no,
       },
       { new: true, runValidators: true } // Return updated document and apply validation
     );
@@ -112,10 +112,10 @@ export async function PUT(
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error while updating asset Model", error);
     return NextResponse.json(
-      { success: false, message: "Server error", error: error.message },
+      { success: false, message: "Server error", error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

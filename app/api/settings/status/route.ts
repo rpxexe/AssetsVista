@@ -9,27 +9,28 @@ import { NextRequest, NextResponse } from "next/server";
 
 
 export async function POST(req: Request) {
-  
+
   await dbconnect();
   try {
     const { name } = await req.json();
     const status = new StatusModel({ name });
     await status.save();
-    
-    
+
+
     return Response.json(
       {
         success: true,
         message: "Status created successfully",
-        
+
       },
       { status: 201 }
     );
-  } catch (error:any) {
+  } catch (error: unknown) {
     console.error("Error while creating status", error);
-    if(error.code===11000){
-      const key=Object.keys(error.keyValue)[0]
-      const value=error.keyValue[key]
+    const mongoError = error as { code?: number; keyValue?: Record<string, string> };
+    if (mongoError.code === 11000) {
+      const key = Object.keys(mongoError.keyValue ?? {})[0]
+      const value = mongoError.keyValue?.[key]
       return Response.json(
         {
           success: false,
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
 export async function GET() {
   await dbconnect();
   try {
-    
+
     const statuses = await StatusModel.find().sort({ createdAt: -1 });
     const statuswithassets = await Promise.all(
       statuses.map(async (status) => {
@@ -106,9 +107,9 @@ export async function DELETE(req: NextRequest) {
       { message: "Status deleted successfully", deletedSatus },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { message: "Error deleting Status", error: error.message },
+      { message: "Error deleting Status", error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

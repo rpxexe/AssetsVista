@@ -56,7 +56,7 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-   context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params; // ✅ await params
   await dbconnect();
@@ -177,10 +177,10 @@ export async function PUT(
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error while updating asset", error);
     return NextResponse.json(
-      { success: false, message: "Server error", error: error.message },
+      { success: false, message: "Server error", error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

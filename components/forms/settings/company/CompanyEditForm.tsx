@@ -10,7 +10,7 @@ import {
 import {
   Form,
   FormControl,
-  
+
   FormField,
   FormItem,
   FormLabel,
@@ -25,7 +25,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import axios, { AxiosError } from "axios";
 
 import { Edit, Loader2 } from "lucide-react";
-import React, { useEffect} from "react";
+import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -64,7 +64,6 @@ const CompanyEditForm: React.FC<EditProps> = ({ id }) => {
   const {
     data: companyData,
     isLoading: isFetching,
-    error,
   } = useQuery({
     queryKey: ["companies", id],
     queryFn: () => fetchCompany(id),
@@ -79,7 +78,7 @@ const CompanyEditForm: React.FC<EditProps> = ({ id }) => {
         email: companyData.email,
       });
     }
-  }, [companyData]);
+  }, [companyData, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
@@ -87,7 +86,7 @@ const CompanyEditForm: React.FC<EditProps> = ({ id }) => {
         `/api/settings/company/${id}`,
         {
           name: values.name,
-          
+
           email: values.email,
         }
       );

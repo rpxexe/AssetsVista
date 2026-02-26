@@ -5,71 +5,72 @@ import { LocationModel } from "@/models/setting/Locations.model";
 
 import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(req:Request){
-    await dbconnect();
-    try {
-        const {name,currency,address,city,state}= await req.json();
-        const location= new LocationModel({name,currency,address,city,state})
-        await location.save()
-         
-        return Response.json(
-          {
-            success: true,
-            message: "location created successfully",
-      
-          },
-          { status: 201 }
-        );
-    } catch (error:any) {
-        console.error("Error while creating Location", error);
-        if (error.code === 11000) {
-          const key = Object.keys(error.keyValue)[0];
-          const value = error.keyValue[key];
-          return Response.json(
-            {
-              success: false,
-              message: `${value} is already Added`,
-            },
-            { status: 500 }
-          );
-        }
-        return Response.json(
-          {
-            success: false,
-            message: "Error while creating Location",
-          },
-          { status: 500 }
-        );
+export async function POST(req: Request) {
+  await dbconnect();
+  try {
+    const { name, currency, address, city, state } = await req.json();
+    const location = new LocationModel({ name, currency, address, city, state })
+    await location.save()
+
+    return Response.json(
+      {
+        success: true,
+        message: "location created successfully",
+
+      },
+      { status: 201 }
+    );
+  } catch (error: unknown) {
+    console.error("Error while creating Location", error);
+    const mongoError = error as { code?: number; keyValue?: Record<string, string> };
+    if (mongoError.code === 11000) {
+      const key = Object.keys(mongoError.keyValue ?? {})[0];
+      const value = mongoError.keyValue?.[key];
+      return Response.json(
+        {
+          success: false,
+          message: `${value} is already Added`,
+        },
+        { status: 500 }
+      );
     }
+    return Response.json(
+      {
+        success: false,
+        message: "Error while creating Location",
+      },
+      { status: 500 }
+    );
+  }
 }
-export async function GET(){
-    await dbconnect();
-    try {
-      
-        const locations = await LocationModel.find().sort({ createdAt: -1 });
-        const locationWithAllData= await Promise.all(
-          locations.map(async(location)=>{
-            const assets= await AssetModel.countDocuments({location:location._id})
-            const department= await DepartmentModel.countDocuments({location:location._id})
-            return{...location.toObject(),assets,department}  
-          })
-        )
-          
-        return Response.json(
-          {
-            success: true,
-            message: "Location fetched successfully",
-            data: locationWithAllData,
-          },
-          { status: 200 }
-        );
-    } catch (error) {
-        console.error("Error while fetching Location",error)
-        return Response.json({
-            success:false,
-            message:"Error while fetching Location",
-        },{status:500})
-    }
+export async function GET() {
+  await dbconnect();
+  try {
+
+    const locations = await LocationModel.find().sort({ createdAt: -1 });
+    const locationWithAllData = await Promise.all(
+      locations.map(async (location) => {
+        const assets = await AssetModel.countDocuments({ location: location._id })
+        const department = await DepartmentModel.countDocuments({ location: location._id })
+        return { ...location.toObject(), assets, department }
+      })
+    )
+
+    return Response.json(
+      {
+        success: true,
+        message: "Location fetched successfully",
+        data: locationWithAllData,
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Error while fetching Location", error)
+    return Response.json({
+      success: false,
+      message: "Error while fetching Location",
+    }, { status: 500 })
+  }
 }
 
 
@@ -98,9 +99,9 @@ export async function DELETE(req: NextRequest) {
       { message: "Location deleted successfully", deletedLocation },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { message: "Error deleting Location", error: error.message },
+      { message: "Error deleting Location", error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

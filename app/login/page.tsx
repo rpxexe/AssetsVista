@@ -30,6 +30,7 @@ export default function Home() {
                 again, ever. ❤
               </p>
             </div>
+            
             <Login />
           </main>
           <footer className="row-start-3 flex gap-[0.5rem] md:gap-10 items-center justify-center">

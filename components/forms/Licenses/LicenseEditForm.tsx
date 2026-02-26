@@ -105,7 +105,7 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
   const {
     data: licenseData,
     isLoading: isFetching,
-    
+
   } = useQuery({
     queryKey: ["license", id],
     queryFn: () => fetchLicense(id),
@@ -131,7 +131,7 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
         termination_date: new Date(licenseData.termination_date),
       });
     }
-  }, [licenseData]);
+  }, [licenseData, form]);
 
   // Handle form submission
   const onSubmit = async (values: z.infer<typeof formSchema>) => {

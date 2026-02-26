@@ -5,7 +5,7 @@ import { z } from "zod";
 import { useQuery } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 
-import {  Edit, Loader2 } from "lucide-react";
+import { Edit, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 import { ApiResponse } from "@/types/ApiResponse";
@@ -57,14 +57,14 @@ type EditProps = {
 
 const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
   const { toast } = useToast();
-  
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
       model_no: "",
       category: "",
-      
+
     },
   });
 
@@ -77,7 +77,6 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
   const {
     data: assetModelData,
     isLoading: isFetching,
-    error,
   } = useQuery({
     queryKey: ["assetmodel", id],
     queryFn: () => fetchAssetModel(id),
@@ -92,7 +91,7 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
         category: assetModelData.category?.name,
       });
     }
-  }, [assetModelData]);
+  }, [assetModelData, form]);
 
   // Handle form submission
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -101,7 +100,7 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
         name: values.name,
         model_no: values.model_no,
         categoryName: values.category,
-        
+
       });
 
       toast({
@@ -141,48 +140,48 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
               onSubmit={form.handleSubmit(onSubmit)}
               className="space-y-3 max-w-3xl mx-auto py-5"
             >
-             <FormField
-                             control={form.control}
-                             name="name"
-                             render={({ field }) => (
-                               <FormItem>
-                                 <FormLabel>Asset Model Name</FormLabel>
-                                 <FormControl>
-                                   <Input placeholder="Asset Model Name" type="text" {...field} />
-                                 </FormControl>
-             
-                                 <FormMessage />
-                               </FormItem>
-                             )}
-                           />
-                           <FormField
-                             control={form.control}
-                             name="model_no"
-                             render={({ field }) => (
-                               <FormItem>
-                                 <FormLabel>Model Number</FormLabel>
-                                 <FormControl>
-                                   <Input placeholder="Model Number" type="text" {...field} />
-                                 </FormControl>
-             
-                                 <FormMessage />
-                               </FormItem>
-                             )}
-                           />
-                           <FormField
-                             control={form.control}
-                             name="category"
-                             render={({ field }) => (
-                               <FormItem className="flex flex-col">
-                                 <FormLabel>Category</FormLabel>
-                                 <CategoryBox
-                                   value={field.value}
-                                   onChange={field.onChange}
-                                 />
-                                 <FormMessage />
-                               </FormItem>
-                             )}
-                           />
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Asset Model Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Asset Model Name" type="text" {...field} />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="model_no"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Model Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Model Number" type="text" {...field} />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Category</FormLabel>
+                    <CategoryBox
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <DialogFooter className="gap-2 pt-2 sm:space-x-0">
                 <DialogClose asChild>
                   <Button type="button" variant="outline">

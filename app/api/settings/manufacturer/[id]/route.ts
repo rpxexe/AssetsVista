@@ -12,7 +12,7 @@ export async function GET(
   // Extract params from context
 
   await dbconnect();
-  const { id } = await context.params; 
+  const { id } = await context.params;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
@@ -22,7 +22,7 @@ export async function GET(
   }
 
   try {
-    const manufacturer = await ManufacturerModel.findById(params.id);
+    const manufacturer = await ManufacturerModel.findById(id);
 
     return NextResponse.json(
       {
@@ -49,7 +49,7 @@ export async function PUT(
 ) {
   await dbconnect();
 
-  const { id } = await context.params; 
+  const { id } = await context.params;
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
       { success: false, message: "Invalid or missing Manufacturer ID" },
@@ -88,10 +88,10 @@ export async function PUT(
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error while updating Manufacturer", error);
     return NextResponse.json(
-      { success: false, message: "Server error", error: error.message },
+      { success: false, message: "Server error", error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }
