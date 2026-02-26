@@ -11,9 +11,9 @@ import { SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs";
 
 
 export default function Login() {
-  const { isSignedIn, user, isLoaded } = useUser()
+  const { user, isLoaded } = useUser()
   const router = useRouter();
- 
+
 
   useEffect(() => {
     if (user) {
@@ -27,26 +27,26 @@ export default function Login() {
       </div>
     );
   }
-  
-  
+
+
   if (!user)
     return (
       <div className="flex justify-center gap-8">
         <SignedOut>
           <div className="flex gap-2 justify-center items-center p-6 rounded-full text-[1rem] font-poppins border border-2 dark:border-white border-zinc-300 shadow-md hover:bg-zinc-300 dark:bg-black">
             <KeyRound />
-            
-            <SignInButton/>
+
+            <SignInButton />
           </div>
-          
-        
-        
+
+
+
           <div className="flex gap-2 justify-center items-center p-6 rounded-full text-[1rem] font-poppins  border border-2 dark:border-white border-zinc-300 shadow-md hover:bg-zinc-300 dark:bg-black">
             <UserPlus />
-            <SignUpButton/>
-            
+            <SignUpButton />
+
           </div>
-          
+
         </SignedOut>
       </div>
     );

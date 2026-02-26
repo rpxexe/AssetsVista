@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
-import {  Edit, Loader2 } from "lucide-react";
+import { Edit, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ApiResponse } from "@/types/ApiResponse";
 import {
@@ -58,16 +58,16 @@ type EditProps = {
 
 const DepartmentEditForm: React.FC<EditProps> = ({ id }) => {
   const { toast } = useToast();
-  
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-        company: "",
-        location: "",
-        phone: "",
+      company: "",
+      location: "",
+      phone: "",
 
-      
+
     },
   });
 
@@ -80,7 +80,6 @@ const DepartmentEditForm: React.FC<EditProps> = ({ id }) => {
   const {
     data: departmentData,
     isLoading: isFetching,
-    error,
   } = useQuery({
     queryKey: ["department", id],
     queryFn: () => fetchDepartment(id),
@@ -96,7 +95,7 @@ const DepartmentEditForm: React.FC<EditProps> = ({ id }) => {
         phone: departmentData.phone,
       });
     }
-  }, [departmentData]);
+  }, [departmentData, form]);
 
   // Handle form submission
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -106,7 +105,7 @@ const DepartmentEditForm: React.FC<EditProps> = ({ id }) => {
         companyName: values.company,
         locationName: values.location,
         phone: values.phone,
-        
+
       });
 
       toast({
@@ -146,69 +145,69 @@ const DepartmentEditForm: React.FC<EditProps> = ({ id }) => {
               onSubmit={form.handleSubmit(onSubmit)}
               className="space-y-3 max-w-3xl mx-auto py-5"
             >
-             <FormField
-                             control={form.control}
-                             name="name"
-                             render={({ field }) => (
-                               <FormItem>
-                                 <FormLabel>Department Name</FormLabel>
-                                 <FormControl>
-                                   <Input
-                                     placeholder="Department Name"
-                                     type="text"
-                                     {...field}
-                                   />
-                                 </FormControl>
-             
-                                 <FormMessage />
-                               </FormItem>
-                             )}
-                           />
-                           <FormField
-                             control={form.control}
-                             name="company"
-                             render={({ field }) => (
-                               <FormItem>
-                                 <FormLabel>Company</FormLabel>
-                                 <FormControl>
-                                   <CompanyBox value={field.value} onChange={field.onChange} />
-                                 </FormControl>
-                                 <FormMessage />
-                               </FormItem>
-                             )}
-                           />
-                           <FormField
-                             control={form.control}
-                             name="phone"
-                             render={({ field }) => (
-                               <FormItem>
-                                 <FormLabel>Phone</FormLabel>
-                                 <FormControl>
-                                   <Input
-                                     placeholder="+912545454454"
-                                     type="text"
-                                     {...field}
-                                   />
-                                 </FormControl>
-             
-                                 <FormMessage />
-                               </FormItem>
-                             )}
-                           />
-                           <FormField
-                             control={form.control}
-                             name="location"
-                             render={({ field }) => (
-                               <FormItem>
-                                 <FormLabel>Location</FormLabel>
-                                 <FormControl>
-                                   <LocationBox value={field.value} onChange={field.onChange} />
-                                 </FormControl>
-                                 <FormMessage />
-                               </FormItem>
-                             )}
-                           />
-                           
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Department Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Department Name"
+                        type="text"
+                        {...field}
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="company"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Company</FormLabel>
+                    <FormControl>
+                      <CompanyBox value={field.value} onChange={field.onChange} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="+912545454454"
+                        type="text"
+                        {...field}
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location</FormLabel>
+                    <FormControl>
+                      <LocationBox value={field.value} onChange={field.onChange} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <DialogFooter className="gap-2 pt-2 sm:space-x-0">
                 <DialogClose asChild>
                   <Button type="button" variant="outline">

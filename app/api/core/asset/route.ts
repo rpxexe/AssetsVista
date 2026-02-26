@@ -240,9 +240,9 @@ export async function DELETE(req: NextRequest) {
       { message: "Asset deleted successfully", deletedAsset },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { message: "Error deleting asset", error: error.message },
+      { message: "Error deleting asset", error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

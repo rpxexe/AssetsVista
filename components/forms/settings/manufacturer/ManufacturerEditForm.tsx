@@ -24,7 +24,7 @@ import { ApiResponse } from "@/types/ApiResponse";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios, { AxiosError } from "axios";
 
-import { Edit, Loader2} from "lucide-react";
+import { Edit, Loader2 } from "lucide-react";
 import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -79,7 +79,6 @@ const ManufacturerEditForm: React.FC<EditProps> = ({ id }) => {
   const {
     data: manufacturerData,
     isLoading: isFetching,
-    error,
   } = useQuery({
     queryKey: ["manufacturer", id],
     queryFn: () => fetchManufacturer(id),
@@ -96,7 +95,7 @@ const ManufacturerEditForm: React.FC<EditProps> = ({ id }) => {
         support_email: manufacturerData.support_email,
       });
     }
-  }, [manufacturerData]);
+  }, [manufacturerData, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {

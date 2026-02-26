@@ -10,10 +10,10 @@ export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
- // Extract params from context
+  // Extract params from context
 
   await dbconnect();
-  const { id } = await context.params; 
+  const { id } = await context.params;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
@@ -23,7 +23,7 @@ export async function GET(
   }
 
   try {
-    const status = await StatusModel.findById(params.id);
+    const status = await StatusModel.findById(id);
 
     return NextResponse.json(
       {
@@ -46,11 +46,11 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   await dbconnect();
 
-  const { id } = params;
+  const { id } = await params;
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
       { success: false, message: "Invalid or missing status ID" },
@@ -66,7 +66,7 @@ export async function PUT(
       id,
       {
         name: data.name,
-        
+
       },
       { new: true, runValidators: true } // Return updated document and apply validation
     );
@@ -86,10 +86,10 @@ export async function PUT(
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error while updating Status", error);
     return NextResponse.json(
-      { success: false, message: "Server error", error: error.message },
+      { success: false, message: "Server error", error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

@@ -161,9 +161,9 @@ export async function DELETE(req: NextRequest) {
       { message: "License deleted successfully", deletedLicense },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { message: "Error deleting License", error: error.message },
+      { message: "Error deleting License", error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

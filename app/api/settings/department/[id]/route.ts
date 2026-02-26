@@ -15,7 +15,7 @@ export async function GET(
   // Extract params from context
 
   await dbconnect();
-  const { id } = await context.params; 
+  const { id } = await context.params;
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
       { success: false, message: "Invalid or missing Department ID" },
@@ -24,7 +24,7 @@ export async function GET(
   }
 
   try {
-    const Department = await DepartmentModel.findById(params.id);
+    const Department = await DepartmentModel.findById(id);
 
     return NextResponse.json(
       {
@@ -51,7 +51,7 @@ export async function PUT(
 ) {
   await dbconnect();
 
-  const { id } = await context.params; 
+  const { id } = await context.params;
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
       { success: false, message: "Invalid or missing Department ID" },
@@ -61,7 +61,7 @@ export async function PUT(
 
   try {
     const data = await req.json();
-if (
+    if (
       !data.companyName
     ) {
       return NextResponse.json(
@@ -73,11 +73,11 @@ if (
     // Fetch related models in parallel to optimize performance
     const [
       company,
-    location
+      location
     ] = await Promise.all([
       CompanyModel.findOne({ name: data.companyName }),
       LocationModel.findOne({ name: data.locationName }),
-      
+
     ]);
 
     // Check if all required models exist
@@ -99,7 +99,7 @@ if (
         company: company._id,
         phone: data.phone,
         location: location._id,
-      
+
       },
       { new: true, runValidators: true } // Return updated document and apply validation
     );
@@ -119,10 +119,10 @@ if (
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error while updating Department", error);
     return NextResponse.json(
-      { success: false, message: "Server error", error: error.message },
+      { success: false, message: "Server error", error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

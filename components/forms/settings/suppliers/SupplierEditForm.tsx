@@ -23,7 +23,7 @@ import { ApiResponse } from "@/types/ApiResponse";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios, { AxiosError } from "axios";
 
-import { Edit, Loader2} from "lucide-react";
+import { Edit, Loader2 } from "lucide-react";
 import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -33,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 
 const formSchema = z.object({
- name: z
+  name: z
     .string()
     .min(2, {
       message: "Supplier name must be at least 2 characters.",
@@ -64,11 +64,11 @@ const SupplierEditForm: React.FC<EditProps> = ({ id }) => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-        contact_name: "",
-        address: "",
-    
-        phone: "",
-        email:""
+      contact_name: "",
+      address: "",
+
+      phone: "",
+      email: ""
     },
   });
 
@@ -80,7 +80,6 @@ const SupplierEditForm: React.FC<EditProps> = ({ id }) => {
   const {
     data: supplierData,
     isLoading: isFetching,
-    error,
   } = useQuery({
     queryKey: ["supplier", id],
     queryFn: () => fetchSupplier(id),
@@ -93,13 +92,13 @@ const SupplierEditForm: React.FC<EditProps> = ({ id }) => {
         name: supplierData.name,
         contact_name: supplierData.contact_name,
         address: supplierData.address,
-      
+
         phone: supplierData.phone,
         email: supplierData.email,
 
       });
     }
-  }, [supplierData]);
+  }, [supplierData, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
@@ -107,11 +106,11 @@ const SupplierEditForm: React.FC<EditProps> = ({ id }) => {
         `/api/settings/supplier/${id}`,
         {
           name: values.name,
-            contact_name: values.contact_name,
-            address: values.address,
-          
-            phone: values.phone,
-            email: values.email,
+          contact_name: values.contact_name,
+          address: values.address,
+
+          phone: values.phone,
+          email: values.email,
 
         }
       );
@@ -153,90 +152,90 @@ const SupplierEditForm: React.FC<EditProps> = ({ id }) => {
               className="space-y-3 max-w-3xl mx-auto py-5"
             >
               <FormField
-                              control={form.control}
-                              name="name"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Supplier Name</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      placeholder="Supplier Name"
-                                      type="text"
-                                      {...field}
-                                    />
-                                  </FormControl>
-              
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="contact_name"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Contact Name</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      placeholder="Contact Name"
-                                      type="text"
-                                      {...field}
-                                    />
-                                  </FormControl>
-              
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="phone"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Phone</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      placeholder="+912545454454"
-                                      type="text"
-                                      {...field}
-                                    />
-                                  </FormControl>
-              
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="email"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Email</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      placeholder="admin@example.com"
-                                      type="text"
-                                      {...field}
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                           
-                            <FormField
-                              control={form.control}
-                              name="address"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Address</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="Address" type="text" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Supplier Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Supplier Name"
+                        type="text"
+                        {...field}
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="contact_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contact Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Contact Name"
+                        type="text"
+                        {...field}
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="+912545454454"
+                        type="text"
+                        {...field}
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="admin@example.com"
+                        type="text"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Address</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Address" type="text" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <DialogFooter className="gap-2 pt-2 sm:space-x-0">
                 <DialogClose asChild>

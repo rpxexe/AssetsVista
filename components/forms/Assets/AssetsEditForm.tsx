@@ -34,7 +34,7 @@ import { ApiResponse } from "@/types/ApiResponse";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios, { AxiosError } from "axios";
 import { format } from "date-fns";
-import { CalendarIcon, Edit, Loader2, PlusIcon } from "lucide-react";
+import { CalendarIcon, Edit, Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -94,9 +94,9 @@ const formSchema = z.object({
   }),
 });
 type Editprops = {
-  id:string;
+  id: string;
 };
-const AssetEditForm:React.FC<Editprops> = ({id}) => {
+const AssetEditForm: React.FC<Editprops> = ({ id }) => {
   const { toast } = useToast();
   const [loading, setIsLoading] = useState(false);
 
@@ -120,87 +120,87 @@ const AssetEditForm:React.FC<Editprops> = ({id}) => {
       purchase_cost: 0,
     },
   });
-    const fetchAsset = async (id: string) => {
-      const { data } = await axios.get(`/api/core/asset/${id}`);
-      return data.data;
-    };
+  const fetchAsset = async (id: string) => {
+    const { data } = await axios.get(`/api/core/asset/${id}`);
+    return data.data;
+  };
   const {
-      data: assetData,
-    } = useQuery({
-      queryKey: ["asset", id], // Cache the query based on `id`
-      queryFn: () => fetchAsset(id),
-      enabled: Boolean(id), // Only run when `id` is valid
-    });
+    data: assetData,
+  } = useQuery({
+    queryKey: ["asset", id], // Cache the query based on `id`
+    queryFn: () => fetchAsset(id),
+    enabled: Boolean(id), // Only run when `id` is valid
+  });
   useEffect(() => {
-    if(assetData){
+    if (assetData) {
 
-        form.reset({
-          company: assetData.company.name || "",
-          asset_tag: assetData.asset_tag || "",
-          serial_number: assetData.serial_number || "",
-          asset_model: assetData.asset_model.name || "",
-          status: assetData.status.name || "",
-          location: assetData.location.name || "",
-          supplier: assetData.supplier.name || "",
-          manufacturer: assetData.manufacturer.name || "",
-          department: assetData.department.name || "",
-          asset_name: assetData.asset_name || "",
-          warranty: assetData.warranty || 0,
-          order_number: assetData.order_number || "",
-          purchase_date: assetData.purchase_date
-            ? new Date(assetData.purchase_date)
-            : new Date(),
-          eol_date: assetData.eol_date
-            ? new Date(assetData.eol_date)
-            : new Date(),
-          purchase_cost: assetData.purchase_cost || 0,
-        });
-      }
+      form.reset({
+        company: assetData.company.name || "",
+        asset_tag: assetData.asset_tag || "",
+        serial_number: assetData.serial_number || "",
+        asset_model: assetData.asset_model.name || "",
+        status: assetData.status.name || "",
+        location: assetData.location.name || "",
+        supplier: assetData.supplier.name || "",
+        manufacturer: assetData.manufacturer.name || "",
+        department: assetData.department.name || "",
+        asset_name: assetData.asset_name || "",
+        warranty: assetData.warranty || 0,
+        order_number: assetData.order_number || "",
+        purchase_date: assetData.purchase_date
+          ? new Date(assetData.purchase_date)
+          : new Date(),
+        eol_date: assetData.eol_date
+          ? new Date(assetData.eol_date)
+          : new Date(),
+        purchase_cost: assetData.purchase_cost || 0,
+      });
+    }
   }, [assetData, form]);
 
-  
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
-   try {
-     console.log("Form values before submission:", values);
+    try {
+      console.log("Form values before submission:", values);
 
-     const response = await axios.put<ApiResponse>(`/api/core/asset/${id}`, {
-       companyName: values.company,
-       asset_tag: values.asset_tag,
-       serial_number: values.serial_number,
-       assetModelName: values.asset_model,
-       statusName: values.status,
-       locationName: values.location,
-       supplierName: values.supplier,
-       manufacturerName: values.manufacturer,
-       departmentName: values.department,
-       asset_name: values.asset_name,
-       warranty: values.warranty,
-       order_number: values.order_number,
-       purchase_date: values.purchase_date,
-       eol_date: values.eol_date,
-       purchase_cost: values.purchase_cost,
-     });
+      const response = await axios.put<ApiResponse>(`/api/core/asset/${id}`, {
+        companyName: values.company,
+        asset_tag: values.asset_tag,
+        serial_number: values.serial_number,
+        assetModelName: values.asset_model,
+        statusName: values.status,
+        locationName: values.location,
+        supplierName: values.supplier,
+        manufacturerName: values.manufacturer,
+        departmentName: values.department,
+        asset_name: values.asset_name,
+        warranty: values.warranty,
+        order_number: values.order_number,
+        purchase_date: values.purchase_date,
+        eol_date: values.eol_date,
+        purchase_cost: values.purchase_cost,
+      });
 
-     console.log(response.data);
+      console.log(response.data);
 
-     toast({
-       title: response.data.message,
-       description: "Asset Updated Successfully",
-       variant: "default",
-     });
-   } catch (error) {
-     const axiosError = error as AxiosError<ApiResponse>;
-     console.error("Submission error:", error);
-     toast({
-       title: "Error",
-       description:
-         axiosError.response?.data.message ?? "Failed to Update Asset",
-       variant: "destructive",
-     });
-   } finally {
-     setIsLoading(false);
-   }
+      toast({
+        title: response.data.message,
+        description: "Asset Updated Successfully",
+        variant: "default",
+      });
+    } catch (error) {
+      const axiosError = error as AxiosError<ApiResponse>;
+      console.error("Submission error:", error);
+      toast({
+        title: "Error",
+        description:
+          axiosError.response?.data.message ?? "Failed to Update Asset",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   return (
     <Dialog>
@@ -229,12 +229,12 @@ const AssetEditForm:React.FC<Editprops> = ({id}) => {
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Company</FormLabel>
-                    
-                      <CompanyBox
-                        value={field.value}
-                        onChange={field.onChange}
-                      />
-                    
+
+                    <CompanyBox
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
+
 
                     <FormMessage />
                   </FormItem>
@@ -248,13 +248,13 @@ const AssetEditForm:React.FC<Editprops> = ({id}) => {
                   <FormItem>
                     <FormLabel>Asset Name</FormLabel>
                     <FormControl>
-                      
+
                       <Input
-                          placeholder="Asset Name"
-                          type="text"
-                          {...field}
-                        />
-                      
+                        placeholder="Asset Name"
+                        type="text"
+                        {...field}
+                      />
+
                     </FormControl>
 
                     <FormMessage />

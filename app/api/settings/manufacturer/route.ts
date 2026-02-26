@@ -2,16 +2,16 @@ import dbconnect from "@/lib/dbconnect";
 import { AssetModel } from "@/models/Assets.model";
 import { ManufacturerModel } from "@/models/setting/Manufacturers.model";
 import { NextRequest, NextResponse } from "next/server";
- 
+
 
 export async function POST(req: Request) {
   await dbconnect();
   try {
-    const {  name,
-    url,
-    support_url,
-    support_phone,
-    support_email} = await req.json();
+    const { name,
+      url,
+      support_url,
+      support_phone,
+      support_email } = await req.json();
     const manufacturer = new ManufacturerModel({
       name,
       url,
@@ -20,21 +20,22 @@ export async function POST(req: Request) {
       support_email,
     });
     await manufacturer.save();
-     
-    
+
+
     return Response.json(
       {
         success: true,
         message: "Manufacturer created successfully",
-       
+
       },
       { status: 201 }
     );
-  } catch (error:any) {
+  } catch (error: unknown) {
     console.error("Error while creating manufacturer", error);
-    if (error.code === 11000) {
-      const key = Object.keys(error.keyValue)[0];
-      const value = error.keyValue[key];
+    const mongoError = error as { code?: number; keyValue?: Record<string, string> };
+    if (mongoError.code === 11000) {
+      const key = Object.keys(mongoError.keyValue ?? {})[0];
+      const value = mongoError.keyValue?.[key];
       return Response.json(
         {
           success: false,
@@ -55,17 +56,17 @@ export async function POST(req: Request) {
 export async function GET() {
   await dbconnect();
   try {
-     const manufacturers = await ManufacturerModel.find().sort({
-       createdAt: -1,
-     });
-      const manufacturerswithassets = await Promise.all(
-        manufacturers.map(async (manufacturer) => {
-          const assets = await AssetModel.countDocuments({
-            manufacturer: manufacturer._id,
-          });
-          return { ...manufacturer.toObject(), assets };
-        })
-      );
+    const manufacturers = await ManufacturerModel.find().sort({
+      createdAt: -1,
+    });
+    const manufacturerswithassets = await Promise.all(
+      manufacturers.map(async (manufacturer) => {
+        const assets = await AssetModel.countDocuments({
+          manufacturer: manufacturer._id,
+        });
+        return { ...manufacturer.toObject(), assets };
+      })
+    );
     return Response.json(
       {
         success: true,
@@ -111,9 +112,9 @@ export async function DELETE(req: NextRequest) {
       { message: "Manufacturer deleted successfully", deletedManfacturer },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { message: "Error deleting Manufacturer", error: error.message },
+      { message: "Error deleting Manufacturer", error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

@@ -1,11 +1,8 @@
 import dbconnect from "@/lib/dbconnect";
 import { AssetModel } from "@/models/Assets.model";
-import { AssetModel_Model } from "@/models/setting/AssetModels.model";
-import { CategoryModel } from "@/models/setting/Categories.model";
 import { CompanyModel } from "@/models/setting/Companies.model";
 import { DepartmentModel } from "@/models/setting/Departments.model";
 import { LocationModel } from "@/models/setting/Locations.model";
-import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -35,9 +32,9 @@ export async function POST(req: Request) {
     }
     const department = new DepartmentModel({
       name,
-      company:companyExists._id,
+      company: companyExists._id,
       phone,
-      location:locationExists._id
+      location: locationExists._id
     });
 
     await department.save();
@@ -49,11 +46,12 @@ export async function POST(req: Request) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error while creating Department", error);
-    if (error.code === 11000) {
-      const key = Object.keys(error.keyValue)[0];
-      const value = error.keyValue[key];
+    const mongoError = error as { code?: number; keyValue?: Record<string, string> };
+    if (mongoError.code === 11000) {
+      const key = Object.keys(mongoError.keyValue ?? {})[0];
+      const value = mongoError.keyValue?.[key];
       return Response.json(
         {
           success: false,
@@ -84,7 +82,7 @@ export async function GET() {
         path: "location",
         select: "name",
       },
-      
+
     ];
     const departments = await DepartmentModel.find()
       .sort({ createdAt: -1 })
@@ -145,9 +143,9 @@ export async function DELETE(req: NextRequest) {
       { message: "Department deleted successfully", deletedDepartment },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { message: "Error deleting Department", error: error.message },
+      { message: "Error deleting Department", error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

@@ -9,10 +9,10 @@ export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
- // Extract params from context
+  // Extract params from context
 
   await dbconnect();
-  const { id } = await context.params; 
+  const { id } = await context.params;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
@@ -49,7 +49,7 @@ export async function PUT(
 ) {
   await dbconnect();
 
-  const { id } = await context.params; 
+  const { id } = await context.params;
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
       { success: false, message: "Invalid or missing Company ID" },
@@ -64,8 +64,8 @@ export async function PUT(
     const updatedCompany = await CompanyModel.findByIdAndUpdate(
       id,
       {
-        name:data.name,
-        email:data.email,
+        name: data.name,
+        email: data.email,
       },
       { new: true, runValidators: true } // Return updated document and apply validation
     );
@@ -85,10 +85,10 @@ export async function PUT(
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error while updating Company", error);
     return NextResponse.json(
-      { success: false, message: "Server error", error: error.message },
+      { success: false, message: "Server error", error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
-import {  Edit, Loader2 } from "lucide-react";
+import { Edit, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ApiResponse } from "@/types/ApiResponse";
 import {
@@ -60,10 +60,10 @@ const LocationEditForm: React.FC<EditProps> = ({ id }) => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      currency:"",
-      address:"",
-      city:"",
-      state:""
+      currency: "",
+      address: "",
+      city: "",
+      state: ""
     },
   });
 
@@ -75,7 +75,6 @@ const LocationEditForm: React.FC<EditProps> = ({ id }) => {
   const {
     data: locationData,
     isLoading: isFetching,
-    error,
   } = useQuery({
     queryKey: ["locations", id],
     queryFn: () => fetchLocation(id),
@@ -92,7 +91,7 @@ const LocationEditForm: React.FC<EditProps> = ({ id }) => {
         state: locationData.state,
       });
     }
-  }, [locationData]);
+  }, [locationData, form]);
 
   // Handle form submission
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -101,10 +100,10 @@ const LocationEditForm: React.FC<EditProps> = ({ id }) => {
         `/api/settings/location/${id}`,
         {
           name: values.name,
-          currency:values.currency,
-          address:values.address,
-          city:values.city,
-          state:values.state
+          currency: values.currency,
+          address: values.address,
+          city: values.city,
+          state: values.state
         }
       );
 
@@ -146,80 +145,80 @@ const LocationEditForm: React.FC<EditProps> = ({ id }) => {
               className="space-y-3 max-w-3xl mx-auto py-5"
             >
               <FormField
-                              control={form.control}
-                              name="name"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Location Name</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      placeholder="Location Name"
-                                      type="text"
-                                      {...field}
-                                    />
-                                  </FormControl>
-              
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="currency"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Currency</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="CURRENCY" type="text" {...field}/>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="address"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Address</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      placeholder="Address"
-                                      type="text"
-                                      {...field}
-                                    />
-                                  </FormControl>
-              
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="city"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>City</FormLabel>
-                                  <FormControl>
-                                   <Input placeholder="City" type="text" {...field}/>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="state"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>State</FormLabel>
-                                  <FormControl>
-                                   <Input placeholder="State" type="text" {...field}/>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Location Name"
+                        type="text"
+                        {...field}
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency</FormLabel>
+                    <FormControl>
+                      <Input placeholder="CURRENCY" type="text" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Address</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Address"
+                        type="text"
+                        {...field}
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="city"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>City</FormLabel>
+                    <FormControl>
+                      <Input placeholder="City" type="text" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="state"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>State</FormLabel>
+                    <FormControl>
+                      <Input placeholder="State" type="text" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <DialogFooter className="gap-2 pt-2 sm:space-x-0">
                 <DialogClose asChild>

@@ -18,7 +18,7 @@ const colordata = [
 export type Status = {
   name: string;
   assets: number;
-  color:string;
+  color: string;
 };
 
 const RadialGraph = () => {
@@ -26,19 +26,19 @@ const RadialGraph = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get("/api/settings/status"); 
+        const response = await axios.get("/api/settings/status");
         const apiData = response.data.data;
         const dataWithColors = apiData.map((item: Status, index: number) => ({
           ...item,
-          color: colordata[index % colordata.length].color, 
+          color: colordata[index % colordata.length].color,
         }));
 
-        setData(dataWithColors); 
-        
+        setData(dataWithColors);
+
       } catch (err) {
         setError("Failed to fetch data");
         console.error(err);
@@ -52,8 +52,8 @@ const RadialGraph = () => {
 
   if (loading) {
     return <div className="mt-12 w-full h-full flex items-center justify-center">
-              <Loader2 className="animate-spin h-8 w-8 text-muted-foreground"  />
-            </div>;
+      <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
+    </div>;
   }
 
   if (error) {
@@ -70,8 +70,8 @@ const RadialGraph = () => {
             innerRadius={"60%"}
             paddingAngle={5}
             outerRadius={"80%"}
-            dataKey="assets" 
-            nameKey="name" 
+            dataKey="assets"
+            nameKey="name"
           >
             {data.map((item, index) => (
               <Cell key={`cell-${index}`} fill={item.color} />
@@ -90,12 +90,12 @@ const RadialGraph = () => {
         </PieChart>
       </ResponsiveContainer>
       <div className="w-full grid grid-cols-2">
-        {data.map((item, index) => (
+        {data.map((item) => (
           <div key={item.name} className="flex gap-2 w-full text-sm">
             <div className="flex gap-2 items-center">
               <div
                 className="rounded-full h-3 w-3"
-                style={{ backgroundColor: item.color }} 
+                style={{ backgroundColor: item.color }}
               ></div>
               <span>{item.name}</span>
             </div>

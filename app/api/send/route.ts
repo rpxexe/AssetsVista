@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 
 // import { EmailTemplate } from "@/components/email-template";
 // import { Resend } from "resend";
@@ -23,3 +24,11 @@
 //     return Response.json({ error }, { status: 500 });
 //   }
 // }
+
+// Placeholder export to make this a valid route module
+export async function POST() {
+    return NextResponse.json(
+        { message: "Send endpoint is not yet implemented" },
+        { status: 501 }
+    );
+}

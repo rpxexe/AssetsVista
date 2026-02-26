@@ -1,5 +1,5 @@
 import dbconnect from "@/lib/dbconnect";
-import { AssetModel_Model } from "@/models/setting/AssetModels.model";
+
 import { CategoryModel } from "@/models/setting/Categories.model";
 
 import mongoose from "mongoose";
@@ -49,7 +49,7 @@ export async function PUT(
 ) {
   await dbconnect();
 
-  const { id } = await context.params; 
+  const { id } = await context.params;
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
       { success: false, message: "Invalid or missing category ID" },
@@ -64,9 +64,9 @@ export async function PUT(
     const updatedCategory = await CategoryModel.findByIdAndUpdate(
       id,
       {
-        name:data.name,
-        type:data.type,
-        email:data.email,
+        name: data.name,
+        type: data.type,
+        email: data.email,
       },
       { new: true, runValidators: true } // Return updated document and apply validation
     );
@@ -86,10 +86,10 @@ export async function PUT(
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error while updating category", error);
     return NextResponse.json(
-      { success: false, message: "Server error", error: error.message },
+      { success: false, message: "Server error", error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
+
 
 import { cn } from "@/lib/utils";
-import { Droplet, FilePieChart, Keyboard, LibraryBig, Microchip, Search, User } from "lucide-react";
+import { Droplet, FilePieChart, Keyboard, Microchip, User } from "lucide-react";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -12,7 +12,7 @@ import {
   NavigationMenuLink,
   NavigationMenuList,
   NavigationMenuTrigger,
-  
+
 } from "@/components/ui/navigation-menu";
 
 
@@ -26,7 +26,7 @@ export function NavigationMenuHeader() {
           </NavigationMenuTrigger>
           <NavigationMenuContent>
             <ul className="flex flex-col justify-center p-2 md:w-[150px] lg:w-[150px]">
-                              
+
               {/* <AssetForm/> */}
               <ListItem
                 href="#"
@@ -67,7 +67,7 @@ const ListItem = React.forwardRef<
     icon?: React.ReactNode;
     title: string;
   }
->(({ className, title, children,icon, ...props }, ref) => {
+>(({ className, title, icon, ...props }, ref) => {
   return (
     <li>
       <NavigationMenuLink asChild>
