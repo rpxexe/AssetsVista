@@ -1,8 +1,8 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { Edit, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -58,6 +58,8 @@ type EditProps = {
 
 const DepartmentEditForm: React.FC<EditProps> = ({ id }) => {
   const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -83,7 +85,7 @@ const DepartmentEditForm: React.FC<EditProps> = ({ id }) => {
   } = useQuery({
     queryKey: ["department", id],
     queryFn: () => fetchDepartment(id),
-    enabled: !!id,
+    enabled: open && Boolean(id),
   });
 
   useEffect(() => {
@@ -113,6 +115,9 @@ const DepartmentEditForm: React.FC<EditProps> = ({ id }) => {
         description: "Department Updated Successfully",
         variant: "default",
       });
+      queryClient.invalidateQueries({ queryKey: ["departments"] });
+      queryClient.invalidateQueries({ queryKey: ["department", id] });
+      setOpen(false);
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       toast({
@@ -125,7 +130,7 @@ const DepartmentEditForm: React.FC<EditProps> = ({ id }) => {
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
           size="icon"
@@ -135,8 +140,8 @@ const DepartmentEditForm: React.FC<EditProps> = ({ id }) => {
           <Edit size={20} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-full max-w-[550px] p-0">
-        <ScrollArea className="h-[100%] w-full p-6">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
           <DialogHeader>
             <DialogTitle className="text-2xl">Update Department</DialogTitle>
           </DialogHeader>

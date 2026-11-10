@@ -1,4 +1,7 @@
 import dbconnect from "@/lib/dbconnect";
+import { apiErrorResponse } from "@/lib/apiError";
+import { invalidateElasticIndexCache } from "@/lib/elasticSearch";
+import { getWorkspaceUserId } from "@/lib/serverAuth";
 import { CompanyModel } from "@/models/setting/Companies.model";
 
 import mongoose from "mongoose";
@@ -12,6 +15,14 @@ export async function GET(
   // Extract params from context
 
   await dbconnect();
+  const workspaceId = await getWorkspaceUserId();
+  if (!workspaceId) {
+    return NextResponse.json(
+      { success: false, message: "Authentication required" },
+      { status: 401 }
+    );
+  }
+
   const { id } = await context.params;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
@@ -22,7 +33,7 @@ export async function GET(
   }
 
   try {
-    const Company = await CompanyModel.findById(id);
+    const Company = await CompanyModel.findOne({ _id: id, userId: workspaceId }).lean();
 
     return NextResponse.json(
       {
@@ -48,6 +59,13 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   await dbconnect();
+  const workspaceId = await getWorkspaceUserId();
+  if (!workspaceId) {
+    return NextResponse.json(
+      { success: false, message: "Authentication required" },
+      { status: 401 }
+    );
+  }
 
   const { id } = await context.params;
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
@@ -60,14 +78,19 @@ export async function PUT(
   try {
     const data = await req.json();
 
-    // Update asset
-    const updatedCompany = await CompanyModel.findByIdAndUpdate(
-      id,
-      {
-        name: data.name,
-        email: data.email,
-      },
-      { new: true, runValidators: true } // Return updated document and apply validation
+    const companyUpdate: Record<string, any> = {
+      name: data.name,
+      email: data.email,
+    };
+    if (data.image !== undefined) {
+      companyUpdate.image = data.image;
+    }
+
+    // Update company
+    const updatedCompany = await CompanyModel.findOneAndUpdate(
+      { _id: id, userId: workspaceId },
+      companyUpdate,
+      { new: true, runValidators: true }
     );
 
     if (!updatedCompany) {
@@ -76,6 +99,8 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    invalidateElasticIndexCache(workspaceId);
 
     return NextResponse.json(
       {
@@ -86,11 +111,7 @@ export async function PUT(
       { status: 200 }
     );
   } catch (error: unknown) {
-    console.error("Error while updating Company", error);
-    return NextResponse.json(
-      { success: false, message: "Server error", error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, "Error while updating company.", "Error while updating Company:");
   }
 }
 

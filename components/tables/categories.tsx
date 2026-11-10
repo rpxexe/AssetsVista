@@ -86,7 +86,6 @@ export function CategoryTable() {
       const response = await axios.get("/api/settings/category");
       return response.data.data;
     },
-    refetchInterval: 3000,
   });
 
   // Define handleDelete inside the component to access refetch

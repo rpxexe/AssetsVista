@@ -1,40 +1,103 @@
-import mongoose, { Document, Model, Schema } from 'mongoose';
-import { Department, DepartmentModel } from './setting/Departments.model';
+import mongoose, { Document, Model, Schema } from "mongoose";
+import { defineModel } from "@/lib/defineModel";
 
-
-export interface People extends Document{
-    name:string;
-    title:string;
-    email:string;
-    phone:string;
-    username:string;
-    department:Department[];
+export interface People extends Document {
+  userId?: string;
+  name: string;
+  first_name?: string;
+  last_name?: string;
+  title?: string;
+  email?: string;
+  phone?: string;
+  username: string;
+  department?: mongoose.Types.ObjectId;
+  location?: mongoose.Types.ObjectId;
+  company?: mongoose.Types.ObjectId;
+  employee_num?: string;
+  notes?: string;
+  image?: string;
 }
+
 const PeopleSchema: Schema<People> = new Schema(
   {
-    name: {
-       type: String, 
-       required: true 
-      },
-    title:{
-      type:String, 
-    },
-    email: { 
-      type: String, 
-    },
-    phone: { 
+    userId: {
       type: String,
+      index: true,
+      trim: true,
     },
-    username: { 
-      type: String, 
-      required: true 
+    name: {
+      type: String,
+      required: [true, "Name is required"],
+      trim: true,
     },
-    department: [DepartmentModel],
+    first_name: {
+      type: String,
+      trim: true,
+    },
+    last_name: {
+      type: String,
+      trim: true,
+    },
+    title: {
+      type: String,
+      trim: true,
+    },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
+    phone: {
+      type: String,
+      trim: true,
+    },
+    username: {
+      type: String,
+      required: [true, "Username is required"],
+      trim: true,
+    },
+    department: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+    },
+    location: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Location",
+    },
+    company: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Companies",
+    },
+    employee_num: {
+      type: String,
+      trim: true,
+    },
+    notes: {
+      type: String,
+      trim: true,
+    },
+    image: {
+      type: String,
+      trim: true,
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
 
-export const PeopleModel: Model<People> = (mongoose.models.People) || mongoose.model<People>(
+PeopleSchema.index({ userId: 1, createdAt: -1 });
+PeopleSchema.index({ userId: 1, username: 1 }, { unique: true });
+PeopleSchema.index({ createdAt: -1 });
+PeopleSchema.index({ name: 1 });
+PeopleSchema.index({ email: 1 });
+PeopleSchema.index({ department: 1 });
+PeopleSchema.index({ location: 1 });
+PeopleSchema.index({ company: 1 });
+
+export const PeopleModel: Model<People> = defineModel<People>(
   "People",
   PeopleSchema
 );

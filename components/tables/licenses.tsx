@@ -17,6 +17,7 @@ import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { UrlSearchSync } from "@/components/UrlSearchSync";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -33,8 +34,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
+import { ExportButton } from "@/components/ExportButton";
+import type { ExportColumnDef } from "@/lib/exportData";
+import { ImageThumbnail } from "@/components/ImageThumbnail";
 import LicenseEditForm from "../forms/Licenses/LicenseEditForm";
 import {
   AlertDialog,
@@ -79,10 +83,12 @@ export type License = {
   purchase_cost: number;
   expiry_date: string;
   termination_date: string;
+  image?: string;
 };
 
 export function LicenseTable() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -91,6 +97,10 @@ export function LicenseTable() {
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+
+  const handleUrlSearch = React.useCallback((q: string) => {
+    setColumnFilters(q ? [{ id: "name", value: q }] : []);
+  }, []);
 
   const {
     data = [],
@@ -103,7 +113,6 @@ export function LicenseTable() {
       const response = await axios.get("/api/core/license");
       return response.data.data;
     },
-    refetchInterval: 3000,
   });
 
   const handleDelete = async (id: string) => {
@@ -115,6 +124,7 @@ export function LicenseTable() {
         variant: "destructive",
       });
       refetch(); // Refresh data after deletion
+      queryClient.invalidateQueries({ queryKey: ["counttotals"] });
     } catch (error) {
       console.error("Error deleting license:", error);
       toast({
@@ -147,6 +157,19 @@ export function LicenseTable() {
       ),
       enableSorting: false,
       enableHiding: false,
+    },
+    {
+      id: "image",
+      header: "Image",
+      cell: ({ row }) => (
+        <ImageThumbnail
+          src={row.original.image}
+          alt={row.original.name}
+          fallback="license"
+          size="sm"
+        />
+      ),
+      enableSorting: false,
     },
     {
       accessorKey: "name",
@@ -338,9 +361,42 @@ export function LicenseTable() {
 
   const pageSizeOptions = [4, 10, 15, 25, 50];
 
+  const licenseExportColumns: ExportColumnDef<License>[] = React.useMemo(
+    () => [
+      { id: "name", header: "License Name", accessor: (l) => l.name || "-" },
+      { id: "product_key", header: "Product Key", accessor: (l) => l.product_key || "-" },
+      { id: "seats", header: "Seats", accessor: (l) => Number(l.seats) || 0 },
+      { id: "license_to_name", header: "Licensed To Name", accessor: (l) => l.license_to_name || "-" },
+      { id: "license_to_email", header: "Licensed To Email", accessor: (l) => l.license_to_email || "-" },
+      { id: "purchase_cost", header: "Cost ($)", accessor: (l) => Number(l.purchase_cost) || 0 },
+      {
+        id: "purchase_date",
+        header: "Purchase Date",
+        accessor: (l) => (l.purchase_date ? l.purchase_date.slice(0, 10) : "-"),
+      },
+      {
+        id: "expiry_date",
+        header: "Expiry Date",
+        accessor: (l) => (l.expiry_date ? l.expiry_date.slice(0, 10) : "-"),
+      },
+      {
+        id: "termination_date",
+        header: "Termination Date",
+        accessor: (l) => (l.termination_date ? l.termination_date.slice(0, 10) : "-"),
+      },
+      { id: "order_number", header: "Order Number", accessor: (l) => l.order_number || "-" },
+      { id: "category.name", header: "Category", accessor: (l) => l.category?.name || "-" },
+      { id: "company.name", header: "Company", accessor: (l) => l.company?.name || "-" },
+      { id: "supplier.name", header: "Supplier", accessor: (l) => l.supplier?.name || "-" },
+      { id: "manufacturer.name", header: "Manufacturer", accessor: (l) => l.manufacturer?.name || "-" },
+    ],
+    []
+  );
+
   return (
     <div className="w-full">
-      <div className="flex items-center py-4">
+      <UrlSearchSync onSearch={handleUrlSearch} />
+      <div className="flex flex-wrap items-center py-4 gap-2">
         <Input
           placeholder="Filter License..."
           value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
@@ -349,12 +405,22 @@ export function LicenseTable() {
           }
           className="max-w-sm"
         />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
-              Columns <ChevronDown />
-            </Button>
-          </DropdownMenuTrigger>
+        <div className="flex items-center gap-2 ml-auto">
+          <ExportButton
+            filename="licenses_inventory"
+            sheetName="Licenses"
+            data={table.getFilteredRowModel().rows.map((r) => r.original)}
+            allData={data}
+            selectedData={table.getFilteredSelectedRowModel().rows.map((r) => r.original)}
+            columns={licenseExportColumns}
+            columnVisibility={columnVisibility}
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                Columns <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {table
               .getAllColumns()
@@ -375,6 +441,7 @@ export function LicenseTable() {
               })}
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
       {isLoading ? (
         <div className="w-full h-full flex items-center justify-center">

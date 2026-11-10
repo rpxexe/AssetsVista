@@ -22,6 +22,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+
 export const data = {
   dashboard: [
     {
@@ -44,52 +45,52 @@ export const data = {
         },
         {
           title: "CheckedOut",
-          url: "#",
+          url: "/assets/listall?status=CheckedOut",
           icon: BadgeCheck,
         },
         {
           title: "Deployed",
-          url: "#",
+          url: "/assets/listall?status=Deployed",
           icon: CheckCheck,
         },
         {
           title: "Ready to Deploy",
-          url: "#",
+          url: "/assets/listall?status=Ready%20to%20Deploy",
           icon: Rocket,
         },
         {
           title: "Pending",
-          url: "#",
+          url: "/assets/listall?status=Pending",
           icon: CircleEllipsis,
         },
         {
           title: "Un-deployed",
-          url: "#",
+          url: "/assets/listall?status=Undeployed",
           icon: X,
         },
         {
           title: "BYOD",
-          url: "#",
+          url: "/assets/listall?status=BYOD",
           icon: MonitorSmartphone,
         },
         {
           title: "Archived",
-          url: "#",
+          url: "/assets/listall?status=Archived",
           icon: FileArchive,
         },
         {
           title: "Requestable",
-          url: "#",
+          url: "/assets/listall?status=Requestable",
           icon: HardDriveUpload,
         },
         {
           title: "Due for Audit",
-          url: "#",
+          url: "/assets/listall?filter=due_audit",
           icon: ShieldX,
         },
         {
           title: "Due for Checkin",
-          url: "#",
+          url: "/assets/listall?filter=due_checkin",
           icon: ShieldEllipsis,
         },
       ],
@@ -134,6 +135,10 @@ export const data = {
           title: "Companies",
           url: "/settings/company",
         },
+        {
+          title: "Setup Wizard",
+          url: "/setup",
+        },
       ],
     },
   ],
@@ -145,35 +150,35 @@ export const data = {
       items: [
         {
           title: "Activity Reports",
-          url: "#",
+          url: "/reports/activity",
         },
         {
           title: "Custom Assets Report",
-          url: "#",
+          url: "/reports/custom",
         },
         {
           title: "Audit Log",
-          url: "#",
+          url: "/reports/activity",
         },
         {
           title: "Depreciation Report",
-          url: "#",
+          url: "/reports/depreciation",
         },
         {
           title: "License Report",
-          url: "#",
+          url: "/reports/licenses",
         },
         {
           title: "Asset Maintenance Reports",
-          url: "#",
+          url: "/reports/maintenance",
         },
         {
           title: "Unaccepted Asset",
-          url: "#",
+          url: "/assets/listall?status=Pending",
         },
         {
           title: "Accessory Report",
-          url: "#",
+          url: "/accessories",
         },
       ],
     },
@@ -186,33 +191,23 @@ export const data = {
     },
     {
       name: "Accessories",
-      url: "#",
+      url: "/accessories",
       icon: Keyboard,
     },
     {
       name: "Consumables",
-      url: "#",
+      url: "/consumables",
       icon: Droplets,
     },
     {
       name: "Components",
-      url: "#",
+      url: "/components",
       icon: Microchip,
     },
     {
-      name: "Predefined Kits",
-      url: "#",
-      icon: ListRestart,
-    },
-    {
       name: "People",
-      url: "#",
+      url: "/people",
       icon: Users,
-    },
-    {
-      name: "Requestable Items",
-      url: "#",
-      icon: ShoppingBag,
     },
   ],
 };

@@ -1,17 +1,21 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
+import { defineModel } from "@/lib/defineModel";
 
 
 export interface Assetmodel extends Document {
+  userId?: string;
   name: string;
   model_no: string;
   assets?: number;
   category: mongoose.Schema.Types.ObjectId; 
   eol_rate: number;
+  image?: string;
 }
 
 const AssetModelSchema: Schema<Assetmodel> = new Schema(
   {
-    name: { type: String, required: [true, "name is required"],unique:true },
+    userId: { type: String, index: true, trim: true },
+    name: { type: String, required: [true, "name is required"] },
     model_no: { type: String },
     category: {
       type: mongoose.Schema.Types.ObjectId, 
@@ -19,6 +23,7 @@ const AssetModelSchema: Schema<Assetmodel> = new Schema(
       required: [true, "Category is required"],
     },
     eol_rate: { type: Number },
+    image: { type: String, trim: true },
   },
   {
     timestamps: true,
@@ -27,8 +32,10 @@ const AssetModelSchema: Schema<Assetmodel> = new Schema(
   }
 );
 
+AssetModelSchema.index({ userId: 1, name: 1 }, { unique: true });
+AssetModelSchema.index({ createdAt: -1 });
 
-
-export const AssetModel_Model: Model<Assetmodel> =
-  mongoose.models.AssetModel ||
-  mongoose.model<Assetmodel>("AssetModel", AssetModelSchema);
+export const AssetModel_Model: Model<Assetmodel> = defineModel<Assetmodel>(
+  "AssetModel",
+  AssetModelSchema
+);

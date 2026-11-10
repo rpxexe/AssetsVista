@@ -1,17 +1,17 @@
-import React, { useEffect, useState} from "react";
-import {Loader2 } from "lucide-react";
+"use client";
+
+import React from "react";
+import { Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import axios from "axios";
 import {
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
-
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
+import { useCachedOptions } from "@/hooks/useCachedOptions";
 
 type Company = {
   name: string;
@@ -22,27 +22,11 @@ interface CompanyBoxProps {
   onChange: (value: string) => void;
 }
 
-export function CompanyBox({value,onChange}:CompanyBoxProps) {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
- 
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await axios.get("/api/settings/company");
-        setCompanies(response.data.data);
-      } catch (err) {
-        setError("Failed to fetch data");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+export function CompanyBox({ value, onChange }: CompanyBoxProps) {
+  const { data: companies = [], isLoading, isError } = useCachedOptions<Company>(
+    ["companies"],
+    "/api/settings/company"
+  );
 
   return (
     <Select onValueChange={onChange} value={value}>
@@ -52,13 +36,13 @@ export function CompanyBox({value,onChange}:CompanyBoxProps) {
       <SelectContent>
         <ScrollArea className="h-48 w-full">
           <SelectGroup>
-            {loading ? (
+            {isLoading ? (
               <div className="w-full h-full flex items-center justify-center">
                 <Loader2 className="animate-spin" />
               </div>
-            ) : error ? (
+            ) : isError ? (
               <div className="w-full flex items-center justify-center">
-                <p className="text-muted-foreground text-red-600">{error}</p>
+                <p className="text-muted-foreground text-red-600">Failed to fetch data</p>
               </div>
             ) : (
               companies.map((company) => (

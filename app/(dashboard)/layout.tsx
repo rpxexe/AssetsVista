@@ -24,7 +24,6 @@ import {
   Microchip,
 } from "lucide-react";
 import Link from "next/link";
-import QueryClientProviderWrapper from "../providers/queryClientProvider";
 
 export default function DashboardLayout({
   children,
@@ -58,7 +57,7 @@ export default function DashboardLayout({
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Link href="#">
+                      <Link href="/licenses">
                         <Button className="p-3" variant="outline">
                           <FileChartPie />
                         </Button>
@@ -71,7 +70,7 @@ export default function DashboardLayout({
 
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Link href="#">
+                      <Link href="/accessories">
                         <Button className="p-3" variant="outline">
                           <Keyboard />
                         </Button>
@@ -84,7 +83,7 @@ export default function DashboardLayout({
 
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Link href="#">
+                      <Link href="/consumables">
                         <Button className="p-3" variant="outline">
                           <Droplets />
                         </Button>
@@ -97,7 +96,7 @@ export default function DashboardLayout({
 
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Link href="#">
+                      <Link href="/components">
                         <Button className="p-3" variant="outline">
                           <Microchip />
                         </Button>
@@ -121,7 +120,7 @@ export default function DashboardLayout({
           </header>
           <hr />
           <main className="font-poppins pt-2 text-sidebar-foreground">
-            <QueryClientProviderWrapper>{children}</QueryClientProviderWrapper>
+            {children}
           </main>
           <hr />
           <footer className="bg-sidebar">

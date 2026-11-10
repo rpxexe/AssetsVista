@@ -1,4 +1,7 @@
 import dbconnect from "@/lib/dbconnect";
+import { apiErrorResponse } from "@/lib/apiError";
+import { invalidateElasticIndexCache } from "@/lib/elasticSearch";
+import { getWorkspaceUserId } from "@/lib/serverAuth";
 import { StatusModel } from "@/models/setting/Status.model";
 
 
@@ -10,9 +13,15 @@ export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  // Extract params from context
-
   await dbconnect();
+  const workspaceId = await getWorkspaceUserId();
+  if (!workspaceId) {
+    return NextResponse.json(
+      { success: false, message: "Authentication required" },
+      { status: 401 }
+    );
+  }
+
   const { id } = await context.params;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
@@ -23,7 +32,7 @@ export async function GET(
   }
 
   try {
-    const status = await StatusModel.findById(id);
+    const status = await StatusModel.findOne({ _id: id, userId: workspaceId }).lean();
 
     return NextResponse.json(
       {
@@ -49,6 +58,13 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   await dbconnect();
+  const workspaceId = await getWorkspaceUserId();
+  if (!workspaceId) {
+    return NextResponse.json(
+      { success: false, message: "Authentication required" },
+      { status: 401 }
+    );
+  }
 
   const { id } = await params;
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
@@ -61,14 +77,13 @@ export async function PUT(
   try {
     const data = await req.json();
 
-    // Update asset
-    const updatedStatus = await StatusModel.findByIdAndUpdate(
-      id,
+    // Update status
+    const updatedStatus = await StatusModel.findOneAndUpdate(
+      { _id: id, userId: workspaceId },
       {
         name: data.name,
-
       },
-      { new: true, runValidators: true } // Return updated document and apply validation
+      { new: true, runValidators: true }
     );
 
     if (!updatedStatus) {
@@ -77,6 +92,8 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    invalidateElasticIndexCache(workspaceId);
 
     return NextResponse.json(
       {
@@ -87,11 +104,7 @@ export async function PUT(
       { status: 200 }
     );
   } catch (error: unknown) {
-    console.error("Error while updating Status", error);
-    return NextResponse.json(
-      { success: false, message: "Server error", error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, "Error updating Status.", "Error while updating Status:");
   }
 }
 

@@ -1,4 +1,7 @@
 import dbconnect from "@/lib/dbconnect";
+import { apiErrorResponse } from "@/lib/apiError";
+import { invalidateElasticIndexCache } from "@/lib/elasticSearch";
+import { getWorkspaceUserId } from "@/lib/serverAuth";
 import { SupplierModel } from "@/models/setting/Suppliers.model";
 
 
@@ -10,9 +13,15 @@ export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  // Extract params from context
-
   await dbconnect();
+  const workspaceId = await getWorkspaceUserId();
+  if (!workspaceId) {
+    return NextResponse.json(
+      { success: false, message: "Authentication required" },
+      { status: 401 }
+    );
+  }
+
   const { id } = await context.params;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
@@ -23,7 +32,7 @@ export async function GET(
   }
 
   try {
-    const supplier = await SupplierModel.findById(id);
+    const supplier = await SupplierModel.findOne({ _id: id, userId: workspaceId }).lean();
 
     return NextResponse.json(
       {
@@ -49,6 +58,13 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   await dbconnect();
+  const workspaceId = await getWorkspaceUserId();
+  if (!workspaceId) {
+    return NextResponse.json(
+      { success: false, message: "Authentication required" },
+      { status: 401 }
+    );
+  }
 
   const { id } = await context.params;
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
@@ -61,17 +77,22 @@ export async function PUT(
   try {
     const data = await req.json();
 
-    // Update asset
-    const updatedSupplier = await SupplierModel.findByIdAndUpdate(
-      id,
-      {
-        name: data.name,
-        address: data.address,
-        contact_name: data.contact_name,
-        email: data.email,
-        phone: data.phone,
-      },
-      { new: true, runValidators: true } // Return updated document and apply validation
+    const supplierUpdate: Record<string, any> = {
+      name: data.name,
+      address: data.address,
+      contact_name: data.contact_name,
+      email: data.email,
+      phone: data.phone,
+    };
+    if (data.image !== undefined) {
+      supplierUpdate.image = data.image;
+    }
+
+    // Update supplier
+    const updatedSupplier = await SupplierModel.findOneAndUpdate(
+      { _id: id, userId: workspaceId },
+      supplierUpdate,
+      { new: true, runValidators: true }
     );
 
     if (!updatedSupplier) {
@@ -80,6 +101,8 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    invalidateElasticIndexCache(workspaceId);
 
     return NextResponse.json(
       {
@@ -90,11 +113,7 @@ export async function PUT(
       { status: 200 }
     );
   } catch (error: unknown) {
-    console.error("Error while updating Supplier", error);
-    return NextResponse.json(
-      { success: false, message: "Server error", error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, "Error while updating supplier.", "Error while updating Supplier:");
   }
 }
 

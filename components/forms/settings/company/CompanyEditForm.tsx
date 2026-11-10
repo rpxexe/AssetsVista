@@ -25,13 +25,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import axios, { AxiosError } from "axios";
 
 import { Edit, Loader2 } from "lucide-react";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ImageUploadField } from "@/components/ImageUploadField";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -40,6 +41,7 @@ const formSchema = z.object({
   email: z.string().nonempty({
     message: "Email can't be Empty",
   }),
+  image: z.string().optional(),
 });
 
 type EditProps = {
@@ -48,11 +50,15 @@ type EditProps = {
 
 const CompanyEditForm: React.FC<EditProps> = ({ id }) => {
   const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
       email: "",
+      image: "",
     },
   });
 
@@ -65,17 +71,17 @@ const CompanyEditForm: React.FC<EditProps> = ({ id }) => {
     data: companyData,
     isLoading: isFetching,
   } = useQuery({
-    queryKey: ["companies", id],
+    queryKey: ["company", id],
     queryFn: () => fetchCompany(id),
-    enabled: !!id,
+    enabled: open && Boolean(id),
   });
 
   useEffect(() => {
     if (companyData) {
       form.reset({
         name: companyData.name,
-
         email: companyData.email,
+        image: companyData.image || "",
       });
     }
   }, [companyData, form]);
@@ -86,8 +92,8 @@ const CompanyEditForm: React.FC<EditProps> = ({ id }) => {
         `/api/settings/company/${id}`,
         {
           name: values.name,
-
           email: values.email,
+          image: values.image ?? "",
         }
       );
 
@@ -96,6 +102,9 @@ const CompanyEditForm: React.FC<EditProps> = ({ id }) => {
         description: "Company Updated Successfully",
         variant: "default",
       });
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+      queryClient.invalidateQueries({ queryKey: ["company", id] });
+      setOpen(false);
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       toast({
@@ -107,7 +116,7 @@ const CompanyEditForm: React.FC<EditProps> = ({ id }) => {
     }
   };
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
           size="icon"
@@ -117,8 +126,8 @@ const CompanyEditForm: React.FC<EditProps> = ({ id }) => {
           <Edit size={20} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-full max-w-[550px] p-0">
-        <ScrollArea className="h-[100%] w-full p-6">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
           <DialogHeader>
             <DialogTitle className="text-2xl">Update Company</DialogTitle>
           </DialogHeader>
@@ -148,6 +157,24 @@ const CompanyEditForm: React.FC<EditProps> = ({ id }) => {
                     <FormLabel>Email</FormLabel>
                     <FormControl>
                       <Input placeholder="Email" {...field} />
+                    </FormControl>
+                    <FormMessage className="text-sm" />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="image"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Company Logo</FormLabel>
+                    <FormControl>
+                      <ImageUploadField
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="https://example.com/company-logo.png"
+                      />
                     </FormControl>
                     <FormMessage className="text-sm" />
                   </FormItem>

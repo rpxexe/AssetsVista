@@ -1,8 +1,8 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { format } from "date-fns";
 import { CalendarIcon, Edit, Loader2 } from "lucide-react";
@@ -39,6 +39,7 @@ import CompanyBox from "@/components/dropDowns/company.dropdown";
 import ManufacturerBox from "@/components/dropDowns/manufacturer.dropdown";
 import SupplierBox from "@/components/dropDowns/supplier.dropdown";
 import CategoryBox from "@/components/dropDowns/category.dropdown";
+import { ImageUploadField } from "@/components/ImageUploadField";
 
 // Form Schema
 const formSchema = z.object({
@@ -68,6 +69,7 @@ const formSchema = z.object({
     required_error: "Termination Date should not be empty",
   }),
   purchase_cost: z.number({ required_error: "Purchase Cost is required" }),
+  image: z.string().optional(),
 });
 
 type EditProps = {
@@ -76,6 +78,8 @@ type EditProps = {
 
 const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
   const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -94,6 +98,7 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
       expiry_date: new Date(),
       termination_date: new Date(),
       purchase_cost: 0,
+      image: "",
     },
   });
 
@@ -109,7 +114,7 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
   } = useQuery({
     queryKey: ["license", id],
     queryFn: () => fetchLicense(id),
-    enabled: !!id,
+    enabled: open && Boolean(id),
   });
 
   useEffect(() => {
@@ -129,6 +134,7 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
         purchase_date: new Date(licenseData.purchase_date),
         expiry_date: new Date(licenseData.expiry_date),
         termination_date: new Date(licenseData.termination_date),
+        image: licenseData.image || "",
       });
     }
   }, [licenseData, form]);
@@ -151,6 +157,7 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
         termination_date: values.termination_date,
         seats: Number(values.seats),
         purchase_cost: values.purchase_cost,
+        image: values.image ?? "",
       });
 
       toast({
@@ -158,6 +165,9 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
         description: "License Updated Successfully",
         variant: "default",
       });
+      queryClient.invalidateQueries({ queryKey: ["licenses"] });
+      queryClient.invalidateQueries({ queryKey: ["license", id] });
+      setOpen(false);
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       toast({
@@ -170,7 +180,7 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
           size="icon"
@@ -180,8 +190,8 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
           <Edit size={20} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-full max-w-[550px] p-0">
-        <ScrollArea className="h-[90%] w-full p-6">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
           <DialogHeader>
             <DialogTitle className="text-2xl">Update License</DialogTitle>
           </DialogHeader>
@@ -518,6 +528,23 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
                   />
                 </div>
               </div>
+              <FormField
+                control={form.control}
+                name="image"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Software Icon / Image</FormLabel>
+                    <FormControl>
+                      <ImageUploadField
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="https://example.com/software-logo.png"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <DialogFooter className="gap-2 pt-2 sm:space-x-0">
                 <DialogClose asChild>
                   <Button type="button" variant="outline">

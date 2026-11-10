@@ -1,18 +1,26 @@
 import dbconnect from "@/lib/dbconnect";
+import { apiErrorResponse } from "@/lib/apiError";
+import { invalidateElasticIndexCache } from "@/lib/elasticSearch";
+import { getWorkspaceUserId } from "@/lib/serverAuth";
 import { AssetModel_Model } from "@/models/setting/AssetModels.model";
 import { CategoryModel } from "@/models/setting/Categories.model";
-
 import mongoose from "mongoose";
-
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await context.params; // Extract params from context
-
+  const { id } = await context.params;
   await dbconnect();
+
+  const workspaceId = await getWorkspaceUserId();
+  if (!workspaceId) {
+    return NextResponse.json(
+      { success: false, message: "Authentication required" },
+      { status: 401 }
+    );
+  }
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
@@ -22,12 +30,17 @@ export async function GET(
   }
 
   try {
-    const query = [
-      { path: "category", select: "name" },
+    const query = [{ path: "category", select: "name type" }];
+    const asset = await AssetModel_Model.findOne({ _id: id, userId: workspaceId })
+      .populate(query)
+      .lean();
 
-    ];
-
-    const asset = await AssetModel_Model.findById(id).populate(query).lean();
+    if (!asset) {
+      return NextResponse.json(
+        { success: false, message: "Asset model not found" },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json(
       { success: true, message: "Asset Model fetched successfully", data: asset },
@@ -42,15 +55,21 @@ export async function GET(
   }
 }
 
-
-
 export async function PUT(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   await dbconnect();
-
   const { id } = await context.params;
+
+  const workspaceId = await getWorkspaceUserId();
+  if (!workspaceId) {
+    return NextResponse.json(
+      { success: false, message: "Authentication required" },
+      { status: 401 }
+    );
+  }
+
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
       { success: false, message: "Invalid or missing asset Model ID" },
@@ -61,40 +80,36 @@ export async function PUT(
   try {
     const data = await req.json();
 
-    // Validate required fields
-    if (
-      !data.categoryName
-    ) {
-      return NextResponse.json(
-        { success: false, message: "Missing required fields" },
-        { status: 400 }
-      );
+    const updateFields: Record<string, any> = {};
+
+    if (data.category || data.categoryName) {
+      const catParam = data.category || data.categoryName;
+      let category = null;
+      if (mongoose.Types.ObjectId.isValid(catParam)) {
+        category = await CategoryModel.findOne({ _id: catParam, userId: workspaceId });
+      }
+      if (!category) {
+        category = await CategoryModel.findOne({ userId: workspaceId, name: catParam });
+      }
+
+      if (!category) {
+        return NextResponse.json(
+          { success: false, message: "Category does not exist" },
+          { status: 404 }
+        );
+      }
+      updateFields.category = category._id;
     }
 
-    // Fetch related models in parallel to optimize performance
-    const [
-      category
-    ] = await Promise.all([
-      CategoryModel.findOne({ name: data.categoryName }),
+    if (data.name !== undefined) updateFields.name = data.name;
+    if (data.model_no !== undefined) updateFields.model_no = data.model_no;
+    if (data.eol_rate !== undefined) updateFields.eol_rate = Number(data.eol_rate);
+    if (data.image !== undefined) updateFields.image = data.image;
 
-    ]);
-
-    // Check if all required models exist
-    if (!category)
-      return NextResponse.json(
-        { success: false, message: "Category does not exist" },
-        { status: 404 }
-      );
-
-    // Update asset
-    const updatedAssetModel = await AssetModel_Model.findByIdAndUpdate(
-      id,
-      {
-        name: data.name,
-        category: category._id,
-        model_no: data.model_no,
-      },
-      { new: true, runValidators: true } // Return updated document and apply validation
+    const updatedAssetModel = await AssetModel_Model.findOneAndUpdate(
+      { _id: id, userId: workspaceId },
+      { $set: updateFields },
+      { new: true, runValidators: true }
     );
 
     if (!updatedAssetModel) {
@@ -104,20 +119,17 @@ export async function PUT(
       );
     }
 
+    invalidateElasticIndexCache(workspaceId);
+
     return NextResponse.json(
       {
         success: true,
         message: "Asset Model updated successfully",
-        asset: updatedAssetModel,
+        data: updatedAssetModel,
       },
       { status: 200 }
     );
   } catch (error: unknown) {
-    console.error("Error while updating asset Model", error);
-    return NextResponse.json(
-      { success: false, message: "Server error", error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, "Error updating asset model.", "Error while updating asset Model:");
   }
 }
-

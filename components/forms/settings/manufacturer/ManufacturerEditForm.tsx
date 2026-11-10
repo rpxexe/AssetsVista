@@ -25,13 +25,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import axios, { AxiosError } from "axios";
 
 import { Edit, Loader2 } from "lucide-react";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ImageUploadField } from "@/components/ImageUploadField";
 
 const formSchema = z.object({
   name: z
@@ -52,6 +53,7 @@ const formSchema = z.object({
   support_email: z.string().nonempty({
     message: "Support Email can't be Empty",
   }),
+  image: z.string().optional(),
 });
 
 type EditProps = {
@@ -60,6 +62,9 @@ type EditProps = {
 
 const ManufacturerEditForm: React.FC<EditProps> = ({ id }) => {
   const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -68,6 +73,7 @@ const ManufacturerEditForm: React.FC<EditProps> = ({ id }) => {
       support_url: "",
       support_email: "",
       support_phone: "",
+      image: "",
     },
   });
 
@@ -82,7 +88,7 @@ const ManufacturerEditForm: React.FC<EditProps> = ({ id }) => {
   } = useQuery({
     queryKey: ["manufacturer", id],
     queryFn: () => fetchManufacturer(id),
-    enabled: !!id,
+    enabled: open && Boolean(id),
   });
 
   useEffect(() => {
@@ -93,6 +99,7 @@ const ManufacturerEditForm: React.FC<EditProps> = ({ id }) => {
         support_url: manufacturerData.support_url,
         support_phone: manufacturerData.support_phone,
         support_email: manufacturerData.support_email,
+        image: manufacturerData.image || "",
       });
     }
   }, [manufacturerData, form]);
@@ -107,6 +114,7 @@ const ManufacturerEditForm: React.FC<EditProps> = ({ id }) => {
           support_url: values.support_url,
           support_phone: values.support_phone,
           support_email: values.support_email,
+          image: values.image ?? "",
         }
       );
 
@@ -115,6 +123,9 @@ const ManufacturerEditForm: React.FC<EditProps> = ({ id }) => {
         description: "Manufacturer Updated Successfully",
         variant: "default",
       });
+      queryClient.invalidateQueries({ queryKey: ["manufacturers"] });
+      queryClient.invalidateQueries({ queryKey: ["manufacturer", id] });
+      setOpen(false);
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       toast({
@@ -126,7 +137,7 @@ const ManufacturerEditForm: React.FC<EditProps> = ({ id }) => {
     }
   };
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
           size="icon"
@@ -136,8 +147,11 @@ const ManufacturerEditForm: React.FC<EditProps> = ({ id }) => {
           <Edit size={20} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-full max-w-[550px] p-0">
-        <ScrollArea className="h-[100%] w-full p-6">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Update Manufacturer</DialogTitle>
+          </DialogHeader>
           <DialogHeader>
             <DialogTitle className="text-2xl">Update Manufacturer</DialogTitle>
           </DialogHeader>
@@ -226,6 +240,24 @@ const ManufacturerEditForm: React.FC<EditProps> = ({ id }) => {
                         placeholder="+912545454454"
                         type="text"
                         {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="image"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Manufacturer Logo</FormLabel>
+                    <FormControl>
+                      <ImageUploadField
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="https://example.com/brand-logo.png"
                       />
                     </FormControl>
                     <FormMessage />

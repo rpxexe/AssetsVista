@@ -1,4 +1,7 @@
 import dbconnect from "@/lib/dbconnect";
+import { apiErrorResponse } from "@/lib/apiError";
+import { invalidateElasticIndexCache } from "@/lib/elasticSearch";
+import { getWorkspaceUserId } from "@/lib/serverAuth";
 import { AssetModel } from "@/models/Assets.model";
 import { DepartmentModel } from "@/models/setting/Departments.model";
 import { LocationModel } from "@/models/setting/Locations.model";
@@ -8,53 +11,79 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: Request) {
   await dbconnect();
   try {
-    const { name, currency, address, city, state } = await req.json();
-    const location = new LocationModel({ name, currency, address, city, state })
-    await location.save()
+    const workspaceId = await getWorkspaceUserId();
+    if (!workspaceId) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const { name, currency, address, city, state, image } = await req.json();
+    const location = new LocationModel({
+      userId: workspaceId,
+      name,
+      currency,
+      address,
+      city,
+      state,
+      image: image || undefined,
+    });
+    await location.save();
+    invalidateElasticIndexCache(workspaceId);
 
     return Response.json(
       {
         success: true,
         message: "location created successfully",
-
       },
       { status: 201 }
     );
   } catch (error: unknown) {
-    console.error("Error while creating Location", error);
-    const mongoError = error as { code?: number; keyValue?: Record<string, string> };
-    if (mongoError.code === 11000) {
-      const key = Object.keys(mongoError.keyValue ?? {})[0];
-      const value = mongoError.keyValue?.[key];
-      return Response.json(
-        {
-          success: false,
-          message: `${value} is already Added`,
-        },
-        { status: 500 }
-      );
-    }
-    return Response.json(
-      {
-        success: false,
-        message: "Error while creating Location",
-      },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, "Error while creating Location.", "Error while creating Location:");
   }
 }
 export async function GET() {
   await dbconnect();
   try {
+    const workspaceId = await getWorkspaceUserId();
+    if (!workspaceId) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required" },
+        { status: 401 }
+      );
+    }
 
-    const locations = await LocationModel.find().sort({ createdAt: -1 });
-    const locationWithAllData = await Promise.all(
-      locations.map(async (location) => {
-        const assets = await AssetModel.countDocuments({ location: location._id })
-        const department = await DepartmentModel.countDocuments({ location: location._id })
-        return { ...location.toObject(), assets, department }
-      })
-    )
+    const [locations, assetCounts, deptCounts] = await Promise.all([
+      LocationModel.find({ userId: workspaceId }).sort({ createdAt: -1 }).lean(),
+      AssetModel.aggregate([
+        { $match: { userId: workspaceId, location: { $ne: null } } },
+        { $group: { _id: "$location", count: { $sum: 1 } } },
+      ]),
+      DepartmentModel.aggregate([
+        { $match: { userId: workspaceId, location: { $ne: null } } },
+        { $group: { _id: "$location", count: { $sum: 1 } } },
+      ]),
+    ]);
+
+    const assetMap = new Map<string, number>();
+    for (const item of assetCounts) {
+      if (item._id) assetMap.set(item._id.toString(), item.count);
+    }
+
+    const deptMap = new Map<string, number>();
+    for (const item of deptCounts) {
+      if (item._id) deptMap.set(item._id.toString(), item.count);
+    }
+
+    const locationWithAllData = locations.map((loc: any) => {
+      const idStr = loc._id.toString();
+      return {
+        ...loc,
+        assets: assetMap.get(idStr) || 0,
+        department: deptMap.get(idStr) || 0,
+      };
+    });
 
     return Response.json(
       {
@@ -76,6 +105,14 @@ export async function GET() {
 
 export async function DELETE(req: NextRequest) {
   await dbconnect();
+  const workspaceId = await getWorkspaceUserId();
+  if (!workspaceId) {
+    return NextResponse.json(
+      { success: false, message: "Authentication required" },
+      { status: 401 }
+    );
+  }
+
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
@@ -87,13 +124,18 @@ export async function DELETE(req: NextRequest) {
   }
 
   try {
-    const deletedLocation = await LocationModel.findByIdAndDelete(id);
+    const deletedLocation = await LocationModel.findOneAndDelete({
+      _id: id,
+      userId: workspaceId,
+    });
     if (!deletedLocation) {
       return NextResponse.json(
         { message: "Location not found" },
         { status: 404 }
       );
     }
+
+    invalidateElasticIndexCache(workspaceId);
 
     return NextResponse.json(
       { message: "Location deleted successfully", deletedLocation },

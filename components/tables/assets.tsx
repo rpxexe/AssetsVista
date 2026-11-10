@@ -34,7 +34,11 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
+import { useSearchParams } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
 import AssetEditForm from "../forms/Assets/AssetsEditForm";
+import AssetCheckoutDialog from "../forms/Assets/AssetCheckoutDialog";
+import AssetCheckinDialog from "../forms/Assets/AssetCheckinDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,7 +58,10 @@ import {
   SelectValue,
 } from "../ui/select";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ExportButton } from "@/components/ExportButton";
+import type { ExportColumnDef } from "@/lib/exportData";
+import { ImageThumbnail } from "@/components/ImageThumbnail";
 
 export type Asset = {
   _id: string;
@@ -62,6 +69,7 @@ export type Asset = {
   serial_number: string;
   asset_model: {
     name: string;
+    image?: string;
   };
   company: {
     name: string;
@@ -79,6 +87,7 @@ export type Asset = {
     name: string;
   };
   status: {
+    _id?: string;
     name: string;
   };
   asset_name: string;
@@ -87,34 +96,52 @@ export type Asset = {
   purchase_date: string;
   purchase_cost: number;
   eol_date: string;
+  image?: string;
+  assigned_to?: any;
+  assigned_type?: string;
+  checkout_date?: string;
+  expected_checkin_date?: string;
 };
 
 export function AssetsTable() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const statusParam = searchParams ? searchParams.get("status") : null;
+  const urlSearchParam = searchParams ? searchParams.get("search") : null;
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   );
+  const [globalFilter, setGlobalFilter] = React.useState<string>(urlSearchParam || "");
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+
+  React.useEffect(() => {
+    if (urlSearchParam !== null) {
+      setGlobalFilter(urlSearchParam);
+    }
+  }, [urlSearchParam]);
 
   const {
     data = [],
     isLoading,
     error,
-    refetch,
   } = useQuery({
-    queryKey: ["assets"], // Correct cache key
+    queryKey: ["assets", statusParam], // Invalidate when status filter changes
     queryFn: async () => {
-      const response = await axios.get("/api/core/asset");
+      const url = statusParam
+        ? `/api/core/asset?status=${encodeURIComponent(statusParam)}`
+        : "/api/core/asset";
+      const response = await axios.get(url);
       return response.data.data;
     },
-    refetchInterval: 3000,
+    placeholderData: keepPreviousData,
   });
 
-  // Define handleDelete inside the component to access refetch
+  // Invalidate related cached queries on deletion
   const handleDelete = async (id: string) => {
     try {
       const response = await axios.delete(`/api/core/asset?id=${id}`);
@@ -123,7 +150,9 @@ export function AssetsTable() {
         description: "Asset Deleted Successfully",
         variant: "destructive",
       });
-      refetch(); // Refresh data after deletion
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+      queryClient.invalidateQueries({ queryKey: ["counttotals"] });
+      queryClient.invalidateQueries({ queryKey: ["status"] });
     } catch (error) {
       console.error("Error deleting asset:", error);
       toast({
@@ -159,6 +188,19 @@ export function AssetsTable() {
       enableHiding: false,
     },
     {
+      id: "image",
+      header: "Image",
+      cell: ({ row }) => (
+        <ImageThumbnail
+          src={row.original.image || row.original.asset_model?.image}
+          alt={row.original.asset_name || row.original.asset_tag}
+          fallback="asset"
+          size="md"
+        />
+      ),
+      enableSorting: false,
+    },
+    {
       accessorKey: "asset_tag",
       header: "Asset Tag",
       cell: ({ row }) => (
@@ -179,7 +221,7 @@ export function AssetsTable() {
     },
     {
       accessorKey: "asset_model.name",
-      header: "Asset Modal",
+      header: "Asset Model",
       cell: ({ row }) => <div>{row.original.asset_model?.name}</div>,
     },
     {
@@ -191,6 +233,40 @@ export function AssetsTable() {
       accessorKey: "status.name",
       header: "Status",
       cell: ({ row }) => <div>{row.original.status?.name}</div>,
+    },
+    {
+      accessorKey: "assigned_to",
+      header: "Assigned To",
+      cell: ({ row }) => {
+        const assigned = row.original.assigned_to;
+        const assignedType = row.original.assigned_type;
+        if (!assigned) {
+          return (
+            <Badge variant="outline" className="text-muted-foreground border-dashed">
+              Available
+            </Badge>
+          );
+        }
+        let displayName = "";
+        if (assigned.first_name) {
+          displayName = `${assigned.first_name} ${assigned.last_name || ""}`.trim();
+        } else if (assigned.name) {
+          displayName = assigned.name;
+        } else if (assigned.username) {
+          displayName = assigned.username;
+        } else {
+          displayName = "Assigned";
+        }
+
+        return (
+          <Badge
+            variant="secondary"
+            className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200"
+          >
+            {displayName} ({assignedType || "Person"})
+          </Badge>
+        );
+      },
     },
     {
       accessorKey: "company.name",
@@ -264,9 +340,30 @@ export function AssetsTable() {
       header: "Actions",
       cell: ({ row }) => {
         const id = row.original._id;
+        const isAssigned = Boolean(row.original.assigned_to);
+        const assigned = row.original.assigned_to;
+        const assignedName = assigned
+          ? (assigned.first_name
+              ? `${assigned.first_name} ${assigned.last_name || ""}`.trim()
+              : assigned.name || "")
+          : undefined;
 
         return (
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            {isAssigned ? (
+              <AssetCheckinDialog
+                assetId={id}
+                assetTag={row.original.asset_tag}
+                assetName={row.original.asset_name}
+                assignedToName={assignedName}
+              />
+            ) : (
+              <AssetCheckoutDialog
+                assetId={id}
+                assetTag={row.original.asset_tag}
+                assetName={row.original.asset_name}
+              />
+            )}
             <AssetEditForm id={id} />
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -283,7 +380,7 @@ export function AssetsTable() {
                   <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                   <AlertDialogDescription>
                     This action cannot be undone. This will permanently delete
-                    your account and remove your data from our servers.
+                    this asset and remove its record.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -308,6 +405,33 @@ export function AssetsTable() {
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const q = String(filterValue || "").toLowerCase().trim();
+      if (!q) return true;
+      const a = row.original;
+      const hay = [
+        a.asset_tag,
+        a.asset_name,
+        a.serial_number,
+        a.order_number,
+        a.status?.name,
+        a.company?.name,
+        a.location?.name,
+        a.department?.name,
+        a.asset_model?.name,
+        a.manufacturer?.name,
+        a.supplier?.name,
+        a.assigned_to?.name,
+        a.assigned_to?.first_name,
+        a.assigned_to?.last_name,
+        a.assigned_to?.email,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    },
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -317,6 +441,7 @@ export function AssetsTable() {
     state: {
       sorting,
       columnFilters,
+      globalFilter,
       columnVisibility,
       rowSelection,
     },
@@ -324,25 +449,79 @@ export function AssetsTable() {
 
   const pageSizeOptions = [4, 10, 15, 25, 50];
 
+  const assetExportColumns: ExportColumnDef<Asset>[] = React.useMemo(
+    () => [
+      { id: "asset_tag", header: "Asset Tag", accessor: (a) => a.asset_tag || "-" },
+      { id: "asset_name", header: "Asset Name", accessor: (a) => a.asset_name || "-" },
+      { id: "serial_number", header: "Serial No", accessor: (a) => a.serial_number || "-" },
+      { id: "asset_model.name", header: "Asset Model", accessor: (a) => a.asset_model?.name || "-" },
+      { id: "status.name", header: "Status", accessor: (a) => a.status?.name || "-" },
+      {
+        id: "assigned_to",
+        header: "Assigned To",
+        accessor: (a) => {
+          const assigned = a.assigned_to;
+          if (!assigned) return "Available";
+          if (assigned.first_name) {
+            return `${assigned.first_name} ${assigned.last_name || ""}`.trim();
+          }
+          return assigned.name || assigned.username || "Assigned";
+        },
+      },
+      { header: "Assigned Type", accessor: (a) => a.assigned_type || "-" },
+      { id: "company.name", header: "Company", accessor: (a) => a.company?.name || "-" },
+      { id: "department.name", header: "Department", accessor: (a) => a.department?.name || "-" },
+      { header: "Location", accessor: (a) => a.location?.name || "-" },
+      { header: "Manufacturer", accessor: (a) => a.manufacturer?.name || "-" },
+      { header: "Supplier", accessor: (a) => a.supplier?.name || "-" },
+      { header: "Order Number", accessor: (a) => a.order_number || "-" },
+      { id: "purchase_cost", header: "Cost ($)", accessor: (a) => Number(a.purchase_cost) || 0 },
+      {
+        id: "purchase_date",
+        header: "Purchase Date",
+        accessor: (a) => (a.purchase_date ? a.purchase_date.slice(0, 10) : "-"),
+      },
+      { id: "warranty", header: "Warranty (Months)", accessor: (a) => a.warranty ?? 0 },
+      { id: "eol_date", header: "EOL Date", accessor: (a) => (a.eol_date ? a.eol_date.slice(0, 10) : "-") },
+    ],
+    []
+  );
+
   return (
     <div className="w-full">
-      <div className="flex items-center py-4">
+      <div className="flex flex-wrap items-center py-4 gap-2">
         <Input
-          placeholder="Filter assets..."
-          value={
-            (table.getColumn("asset_name")?.getFilterValue() as string) ?? ""
-          }
-          onChange={(event) =>
-            table.getColumn("asset_name")?.setFilterValue(event.target.value)
-          }
+          placeholder="Search assets by tag, name, serial, assignee..."
+          value={globalFilter}
+          onChange={(event) => setGlobalFilter(event.target.value)}
           className="max-w-sm"
         />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
-              Columns <ChevronDown />
-            </Button>
-          </DropdownMenuTrigger>
+        {globalFilter && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setGlobalFilter("")}
+            className="text-xs text-muted-foreground"
+          >
+            Clear
+          </Button>
+        )}
+        <div className="flex items-center gap-2 ml-auto">
+          <ExportButton
+            filename="assets_inventory"
+            sheetName="Assets"
+            data={table.getFilteredRowModel().rows.map((r) => r.original)}
+            allData={data}
+            selectedData={table.getFilteredSelectedRowModel().rows.map((r) => r.original)}
+            columns={assetExportColumns}
+            columnVisibility={columnVisibility}
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                Columns <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {table
               .getAllColumns()
@@ -363,6 +542,7 @@ export function AssetsTable() {
               })}
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
       {isLoading ? (
         <div className="w-full h-full flex items-center justify-center">

@@ -56,6 +56,7 @@ import {
 
 import { useQuery } from "@tanstack/react-query";
 import SupplierEditForm from "../forms/settings/suppliers/SupplierEditForm";
+import { ImageThumbnail } from "@/components/ImageThumbnail";
 
 
 export type Supplier = {
@@ -66,6 +67,7 @@ export type Supplier = {
   email: string;
   phone: string;
   assets: number;
+  image?: string;
 };
 export function SupplierTable() {
   const { toast } = useToast();
@@ -89,7 +91,6 @@ export function SupplierTable() {
       const response = await axios.get("/api/settings/supplier");
       return response.data.data;
     },
-    refetchInterval: 3000,
   });
 
   // Define handleDelete inside the component to access refetch
@@ -135,6 +136,19 @@ export function SupplierTable() {
       ),
       enableSorting: false,
       enableHiding: false,
+    },
+    {
+      id: "image",
+      header: "Logo",
+      cell: ({ row }) => (
+        <ImageThumbnail
+          src={row.original.image}
+          alt={row.original.name}
+          fallback="company"
+          size="sm"
+        />
+      ),
+      enableSorting: false,
     },
     {
       accessorKey: "name",

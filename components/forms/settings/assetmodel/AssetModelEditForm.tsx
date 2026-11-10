@@ -1,8 +1,8 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 
 import { Edit, Loader2 } from "lucide-react";
@@ -28,27 +28,26 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-
 import { ScrollArea } from "@/components/ui/scroll-area";
-
 import CategoryBox from "@/components/dropDowns/category.dropdown";
+import { ImageUploadField } from "@/components/ImageUploadField";
 
-// Form Schema
 const formSchema = z.object({
   category: z.string().nonempty({
-    message: "Department shoud not be empty",
+    message: "Category should not be empty",
   }),
   name: z
     .string()
     .min(2, {
-      message: "Asset name must be at least 2 characters.",
+      message: "Asset model name must be at least 2 characters.",
     })
     .nonempty({
-      message: "Asset name can't be Empty",
+      message: "Asset model name cannot be empty",
     }),
   model_no: z.string().nonempty({
-    message: "Model Number can't be Empty",
+    message: "Model Number cannot be empty",
   }),
+  image: z.string().optional(),
 });
 
 type EditProps = {
@@ -57,6 +56,8 @@ type EditProps = {
 
 const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
   const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -64,13 +65,12 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
       name: "",
       model_no: "",
       category: "",
-
+      image: "",
     },
   });
 
-
-  const fetchAssetModel = async (id: string) => {
-    const { data } = await axios.get(`/api/settings/assetmodel/${id}`);
+  const fetchAssetModel = async (modelId: string) => {
+    const { data } = await axios.get(`/api/settings/assetmodel/${modelId}`);
     return data.data;
   };
 
@@ -80,7 +80,7 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
   } = useQuery({
     queryKey: ["assetmodel", id],
     queryFn: () => fetchAssetModel(id),
-    enabled: !!id,
+    enabled: open && Boolean(id),
   });
 
   useEffect(() => {
@@ -88,19 +88,19 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
       form.reset({
         name: assetModelData.name,
         model_no: assetModelData.model_no,
-        category: assetModelData.category?.name,
+        category: assetModelData.category?.name || "",
+        image: assetModelData.image || "",
       });
     }
   }, [assetModelData, form]);
 
-  // Handle form submission
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       const response = await axios.put<ApiResponse>(`/api/settings/assetmodel/${id}`, {
         name: values.name,
         model_no: values.model_no,
         categoryName: values.category,
-
+        image: values.image ?? "",
       });
 
       toast({
@@ -108,6 +108,9 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
         description: "Asset Model Updated Successfully",
         variant: "default",
       });
+      queryClient.invalidateQueries({ queryKey: ["assetsModels"] });
+      queryClient.invalidateQueries({ queryKey: ["assetmodel", id] });
+      setOpen(false);
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       toast({
@@ -120,7 +123,7 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
           size="icon"
@@ -130,8 +133,8 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
           <Edit size={20} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-full max-w-[550px] p-0">
-        <ScrollArea className="h-[100%] w-full p-6">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
           <DialogHeader>
             <DialogTitle className="text-2xl">Update Asset Model</DialogTitle>
           </DialogHeader>
@@ -149,7 +152,6 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
                     <FormControl>
                       <Input placeholder="Asset Model Name" type="text" {...field} />
                     </FormControl>
-
                     <FormMessage />
                   </FormItem>
                 )}
@@ -163,7 +165,6 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
                     <FormControl>
                       <Input placeholder="Model Number" type="text" {...field} />
                     </FormControl>
-
                     <FormMessage />
                   </FormItem>
                 )}
@@ -178,6 +179,23 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
                       value={field.value}
                       onChange={field.onChange}
                     />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="image"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Model Image</FormLabel>
+                    <FormControl>
+                      <ImageUploadField
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="https://example.com/model-photo.png"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -205,3 +223,4 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
 };
 
 export default AssetModelEditForm;
+

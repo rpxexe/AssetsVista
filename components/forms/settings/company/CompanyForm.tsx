@@ -29,23 +29,29 @@ import { ApiResponse } from "@/types/ApiResponse";
 import { useState } from "react";
 import { Loader2, PlusIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useQueryClient } from "@tanstack/react-query";
+import { ImageUploadField } from "@/components/ImageUploadField";
 const formSchema = z.object({
   name: z.string().min(2, {
     message: "Status name must be at least 2 characters.",
   }),
   email:z.string().nonempty({
     message:"Email can't be Empty"
-  })
+  }),
+  image: z.string().optional(),
 });
 const CompanyForm = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      email:""
+      email:"",
+      image: "",
     },
   });
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -53,7 +59,8 @@ const CompanyForm = () => {
     try {
       const response = await axios.post<ApiResponse>("/api/settings/company", {
         name: values.name,
-        email:values.email
+        email:values.email,
+        image: values.image || "",
       });
 
       toast({
@@ -62,6 +69,8 @@ const CompanyForm = () => {
         variant: "default",
       });
       form.reset();
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+      setOpen(false);
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       toast({
@@ -77,15 +86,15 @@ const CompanyForm = () => {
     console.log(values);
   };
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="default">
           <PlusIcon className="size-4" aria-hidden="true" />
-          Add Location
+          Add Company
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-full max-w-[550px] p-0">
-        <ScrollArea className="h-[100%] w-full p-6">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
           <DialogHeader>
             <DialogTitle className="text-2xl">Create Company</DialogTitle>
           </DialogHeader>
@@ -115,6 +124,23 @@ const CompanyForm = () => {
                                   <FormLabel>Email</FormLabel>
                                   <FormControl>
                                     <Input placeholder="Email" {...field} />
+                                  </FormControl>
+                                  <FormMessage className="text-sm" />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="image"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Company Logo</FormLabel>
+                                  <FormControl>
+                                    <ImageUploadField
+                                      value={field.value}
+                                      onChange={field.onChange}
+                                      placeholder="https://example.com/company-logo.png"
+                                    />
                                   </FormControl>
                                   <FormMessage className="text-sm" />
                                 </FormItem>
