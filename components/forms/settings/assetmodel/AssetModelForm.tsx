@@ -32,6 +32,8 @@ import { z } from "zod";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import CategoryBox from "@/components/dropDowns/category.dropdown";
+import { useQueryClient } from "@tanstack/react-query";
+import { ImageUploadField } from "@/components/ImageUploadField";
 const formSchema = z.object({
   category: z.string().nonempty({
     message: "Category shoud not be empty",
@@ -46,19 +48,23 @@ const formSchema = z.object({
     }),
   model_no: z.string().nonempty({
     message: "Model Number can't be Empty",
-  })  
+  }),
+  image: z.string().optional(),
 });
 
 const AssetModelForm = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name:"",
-        model_no:"",
-        category:"",
+      model_no:"",
+      category:"",
+      image: "",
     },
   });
  
@@ -71,6 +77,7 @@ const AssetModelForm = () => {
         name: values.name,
         model_no: values.model_no,
         categoryName: values.category,
+        image: values.image || "",
       });
 
       console.log(response.data);
@@ -82,6 +89,8 @@ const AssetModelForm = () => {
       });
 
       form.reset();
+      queryClient.invalidateQueries({ queryKey: ["assetsModels"] });
+      setOpen(false);
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       console.error("Submission error:", error);
@@ -95,15 +104,15 @@ const AssetModelForm = () => {
     }
   };
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="default">
           <PlusIcon className="size-4" aria-hidden="true" />
           Add Asset Model
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-full max-w-[550px] p-0">
-        <ScrollArea className="h-[100%] w-full p-6">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
           <DialogHeader>
             <DialogTitle className="text-2xl">Create Asset Model</DialogTitle>
           </DialogHeader>
@@ -150,6 +159,24 @@ const AssetModelForm = () => {
                       value={field.value}
                       onChange={field.onChange}
                     />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="image"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Model Image</FormLabel>
+                    <FormControl>
+                      <ImageUploadField
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="https://example.com/model-photo.png"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

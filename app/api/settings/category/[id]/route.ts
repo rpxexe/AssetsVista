@@ -1,4 +1,7 @@
 import dbconnect from "@/lib/dbconnect";
+import { apiErrorResponse } from "@/lib/apiError";
+import { invalidateElasticIndexCache } from "@/lib/elasticSearch";
+import { getWorkspaceUserId } from "@/lib/serverAuth";
 
 import { CategoryModel } from "@/models/setting/Categories.model";
 
@@ -13,6 +16,13 @@ export async function GET(
   const { id } = await context.params; // Extract params from context
 
   await dbconnect();
+  const workspaceId = await getWorkspaceUserId();
+  if (!workspaceId) {
+    return NextResponse.json(
+      { success: false, message: "Authentication required" },
+      { status: 401 }
+    );
+  }
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
@@ -22,7 +32,7 @@ export async function GET(
   }
 
   try {
-    const category = await CategoryModel.findById(id);
+    const category = await CategoryModel.findOne({ _id: id, userId: workspaceId }).lean();
 
     return NextResponse.json(
       {
@@ -48,6 +58,13 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   await dbconnect();
+  const workspaceId = await getWorkspaceUserId();
+  if (!workspaceId) {
+    return NextResponse.json(
+      { success: false, message: "Authentication required" },
+      { status: 401 }
+    );
+  }
 
   const { id } = await context.params;
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
@@ -60,15 +77,15 @@ export async function PUT(
   try {
     const data = await req.json();
 
-    // Update asset
-    const updatedCategory = await CategoryModel.findByIdAndUpdate(
-      id,
+    // Update category
+    const updatedCategory = await CategoryModel.findOneAndUpdate(
+      { _id: id, userId: workspaceId },
       {
         name: data.name,
         type: data.type,
         email: data.email,
       },
-      { new: true, runValidators: true } // Return updated document and apply validation
+      { new: true, runValidators: true }
     );
 
     if (!updatedCategory) {
@@ -77,6 +94,8 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    invalidateElasticIndexCache(workspaceId);
 
     return NextResponse.json(
       {
@@ -87,11 +106,7 @@ export async function PUT(
       { status: 200 }
     );
   } catch (error: unknown) {
-    console.error("Error while updating category", error);
-    return NextResponse.json(
-      { success: false, message: "Server error", error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, "Error updating category.", "Error while updating category:");
   }
 }
 

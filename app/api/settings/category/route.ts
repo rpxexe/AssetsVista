@@ -1,5 +1,8 @@
 
 import dbconnect from "@/lib/dbconnect";
+import { apiErrorResponse } from "@/lib/apiError";
+import { invalidateElasticIndexCache } from "@/lib/elasticSearch";
+import { getWorkspaceUserId } from "@/lib/serverAuth";
 import { LicenseModel } from "@/models/Licenses.model";
 import { AssetModel_Model } from "@/models/setting/AssetModels.model";
 import { CategoryModel } from "@/models/setting/Categories.model";
@@ -9,11 +12,20 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: Request) {
   await dbconnect();
   try {
+    const workspaceId = await getWorkspaceUserId();
+    if (!workspaceId) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
     const { name, type, email } = await req.json();
 
-    const category = new CategoryModel({ name, type, email });
+    const category = new CategoryModel({ userId: workspaceId, name, type, email });
 
     await category.save();
+    invalidateElasticIndexCache(workspaceId);
 
     return Response.json(
       {
@@ -23,45 +35,51 @@ export async function POST(req: Request) {
       { status: 201 }
     );
   } catch (error: unknown) {
-    console.error("Error while creating category", error);
-    const mongoError = error as { code?: number; keyValue?: Record<string, string> };
-    if (mongoError.code === 11000) {
-      const key = Object.keys(mongoError.keyValue ?? {})[0];
-      const value = mongoError.keyValue?.[key];
-      return Response.json(
-        {
-          success: false,
-          message: `${value} is already Added`,
-        },
-        { status: 500 }
-      );
-    }
-    return Response.json(
-      {
-        success: false,
-        message: "Error while creating category",
-      },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, "Error while creating category.", "Error while creating category:");
   }
 }
 
 export async function GET() {
   await dbconnect();
   try {
-    const categories = await CategoryModel.find().sort({ createdAt: -1 });
-    const categorieswithAllData = await Promise.all(
-      categories.map(async (category) => {
-        const qty = await AssetModel_Model.countDocuments({
-          category: category._id,
-        });
-        const license = await LicenseModel.countDocuments({
-          category: category._id,
-        });
+    const workspaceId = await getWorkspaceUserId();
+    if (!workspaceId) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required" },
+        { status: 401 }
+      );
+    }
 
-        return { ...category.toObject(), qty, license };
-      })
-    );
+    const [categories, assetModelCounts, licenseCounts] = await Promise.all([
+      CategoryModel.find({ userId: workspaceId }).sort({ createdAt: -1 }).lean(),
+      AssetModel_Model.aggregate([
+        { $match: { userId: workspaceId, category: { $ne: null } } },
+        { $group: { _id: "$category", count: { $sum: 1 } } },
+      ]),
+      LicenseModel.aggregate([
+        { $match: { userId: workspaceId, category: { $ne: null } } },
+        { $group: { _id: "$category", count: { $sum: 1 } } },
+      ]),
+    ]);
+
+    const assetModelMap = new Map<string, number>();
+    for (const item of assetModelCounts) {
+      if (item._id) assetModelMap.set(item._id.toString(), item.count);
+    }
+
+    const licenseMap = new Map<string, number>();
+    for (const item of licenseCounts) {
+      if (item._id) licenseMap.set(item._id.toString(), item.count);
+    }
+
+    const categorieswithAllData = categories.map((cat: any) => {
+      const idStr = cat._id.toString();
+      return {
+        ...cat,
+        qty: assetModelMap.get(idStr) || 0,
+        license: licenseMap.get(idStr) || 0,
+      };
+    });
 
     return Response.json(
       {
@@ -85,6 +103,14 @@ export async function GET() {
 
 export async function DELETE(req: NextRequest) {
   await dbconnect();
+  const workspaceId = await getWorkspaceUserId();
+  if (!workspaceId) {
+    return NextResponse.json(
+      { success: false, message: "Authentication required" },
+      { status: 401 }
+    );
+  }
+
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
@@ -96,13 +122,18 @@ export async function DELETE(req: NextRequest) {
   }
 
   try {
-    const deletedCategory = await CategoryModel.findByIdAndDelete(id);
+    const deletedCategory = await CategoryModel.findOneAndDelete({
+      _id: id,
+      userId: workspaceId,
+    });
     if (!deletedCategory) {
       return NextResponse.json(
         { message: "Category not found" },
         { status: 404 }
       );
     }
+
+    invalidateElasticIndexCache(workspaceId);
 
     return NextResponse.json(
       { message: "Category deleted successfully", deletedCategory },

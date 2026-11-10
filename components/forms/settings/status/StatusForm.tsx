@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ApiResponse } from "@/types/ApiResponse";
 import { useState } from "react";
 import { Loader2, PlusIcon } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 const formSchema = z.object({
   name: z.string().min(2, {
     message: "Status name must be at least 2 characters.",
@@ -35,6 +36,8 @@ const formSchema = z.object({
 const StatusForm = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -54,7 +57,9 @@ const StatusForm = () => {
         description: "Status created Succesfully",
         variant: "default",
       });
-      form.reset({ ...form.getValues() });
+      form.reset({ name: "" });
+      queryClient.invalidateQueries({ queryKey: ["status"] });
+      setOpen(false);
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       toast({
@@ -70,7 +75,7 @@ const StatusForm = () => {
     console.log(values);
   };
   return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button variant="outline">
                 <PlusIcon className="h-4 w-4" />

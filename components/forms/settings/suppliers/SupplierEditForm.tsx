@@ -24,13 +24,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import axios, { AxiosError } from "axios";
 
 import { Edit, Loader2 } from "lucide-react";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ImageUploadField } from "@/components/ImageUploadField";
 
 const formSchema = z.object({
   name: z
@@ -51,7 +52,7 @@ const formSchema = z.object({
   email: z.string().nonempty({
     message: "Email can't be Empty",
   }),
-
+  image: z.string().optional(),
 });
 
 type EditProps = {
@@ -60,6 +61,9 @@ type EditProps = {
 
 const SupplierEditForm: React.FC<EditProps> = ({ id }) => {
   const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -68,7 +72,8 @@ const SupplierEditForm: React.FC<EditProps> = ({ id }) => {
       address: "",
 
       phone: "",
-      email: ""
+      email: "",
+      image: "",
     },
   });
 
@@ -83,7 +88,7 @@ const SupplierEditForm: React.FC<EditProps> = ({ id }) => {
   } = useQuery({
     queryKey: ["supplier", id],
     queryFn: () => fetchSupplier(id),
-    enabled: !!id,
+    enabled: open && Boolean(id),
   });
 
   useEffect(() => {
@@ -95,7 +100,7 @@ const SupplierEditForm: React.FC<EditProps> = ({ id }) => {
 
         phone: supplierData.phone,
         email: supplierData.email,
-
+        image: supplierData.image || "",
       });
     }
   }, [supplierData, form]);
@@ -111,7 +116,7 @@ const SupplierEditForm: React.FC<EditProps> = ({ id }) => {
 
           phone: values.phone,
           email: values.email,
-
+          image: values.image ?? "",
         }
       );
 
@@ -120,6 +125,9 @@ const SupplierEditForm: React.FC<EditProps> = ({ id }) => {
         description: "Supplier Updated Successfully",
         variant: "default",
       });
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      queryClient.invalidateQueries({ queryKey: ["supplier", id] });
+      setOpen(false);
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       toast({
@@ -131,7 +139,7 @@ const SupplierEditForm: React.FC<EditProps> = ({ id }) => {
     }
   };
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
           size="icon"
@@ -141,8 +149,8 @@ const SupplierEditForm: React.FC<EditProps> = ({ id }) => {
           <Edit size={20} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-full max-w-[550px] p-0">
-        <ScrollArea className="h-[100%] w-full p-6">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
           <DialogHeader>
             <DialogTitle className="text-2xl">Update Supplier</DialogTitle>
           </DialogHeader>
@@ -231,6 +239,24 @@ const SupplierEditForm: React.FC<EditProps> = ({ id }) => {
                     <FormLabel>Address</FormLabel>
                     <FormControl>
                       <Input placeholder="Address" type="text" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="image"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Supplier Logo / Image</FormLabel>
+                    <FormControl>
+                      <ImageUploadField
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="https://example.com/supplier-logo.png"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

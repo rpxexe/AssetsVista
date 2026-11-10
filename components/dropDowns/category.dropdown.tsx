@@ -1,8 +1,8 @@
-"use client"
-import React, { useEffect, useState } from "react";
+"use client";
+
+import React from "react";
 import { Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import axios from "axios";
 import {
   Select,
   SelectContent,
@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCachedOptions } from "@/hooks/useCachedOptions";
 
 type Category = {
   name: string;
@@ -22,25 +23,10 @@ interface CategoryProps {
 }
 
 export function CategoryBox({ value, onChange }: CategoryProps) {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await axios.get("/api/settings/category");
-        setCategories(response.data.data);
-      } catch (err) {
-        setError("Failed to fetch data");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+  const { data: categories = [], isLoading, isError } = useCachedOptions<Category>(
+    ["categories"],
+    "/api/settings/category"
+  );
 
   return (
     <Select onValueChange={onChange} value={value}>
@@ -50,13 +36,13 @@ export function CategoryBox({ value, onChange }: CategoryProps) {
       <SelectContent>
         <ScrollArea className="h-48 w-full">
           <SelectGroup>
-            {loading ? (
+            {isLoading ? (
               <div className="w-full h-full flex items-center justify-center">
                 <Loader2 className="animate-spin" />
               </div>
-            ) : error ? (
+            ) : isError ? (
               <div className="w-full flex items-center justify-center">
-                <p className="text-muted-foreground text-red-600">{error}</p>
+                <p className="text-muted-foreground text-red-600">Failed to fetch data</p>
               </div>
             ) : (
               categories.map((category) => (

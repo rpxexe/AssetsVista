@@ -56,6 +56,7 @@ import {
 
 import { useQuery } from "@tanstack/react-query";
 import LocationEditForm from "../forms/settings/Location/LocationEditForm";
+import { ImageThumbnail } from "@/components/ImageThumbnail";
 
 
 export type Location = {
@@ -67,6 +68,7 @@ export type Location = {
   address: string;
   city: string;
   state: string;
+  image?: string;
 };
 export function LocationTable() {
   const { toast } = useToast();
@@ -90,7 +92,6 @@ export function LocationTable() {
       const response = await axios.get("/api/settings/location");
       return response.data.data;
     },
-    refetchInterval: 3000,
   });
 
   // Define handleDelete inside the component to access refetch
@@ -136,6 +137,19 @@ export function LocationTable() {
       ),
       enableSorting: false,
       enableHiding: false,
+    },
+    {
+      id: "image",
+      header: "Image",
+      cell: ({ row }) => (
+        <ImageThumbnail
+          src={row.original.image}
+          alt={row.original.name}
+          fallback="location"
+          size="sm"
+        />
+      ),
+      enableSorting: false,
     },
     {
       accessorKey: "name",

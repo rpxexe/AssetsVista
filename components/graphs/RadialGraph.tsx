@@ -1,7 +1,10 @@
+"use client";
+
 import axios from "axios";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { useQuery } from "@tanstack/react-query";
+
 const colordata = [
   { color: "#bcbd22" },
   { color: "#84CC16" },
@@ -22,42 +25,33 @@ export type Status = {
 };
 
 const RadialGraph = () => {
-  const [data, setData] = useState<Status[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await axios.get("/api/settings/status");
-        const apiData = response.data.data;
-        const dataWithColors = apiData.map((item: Status, index: number) => ({
-          ...item,
-          color: colordata[index % colordata.length].color,
-        }));
-
-        setData(dataWithColors);
-
-      } catch (err) {
-        setError("Failed to fetch data");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+  const {
+    data = [],
+    isLoading: loading,
+    isError,
+  } = useQuery<Status[], Error, Status[]>({
+    queryKey: ["status"],
+    queryFn: async () => {
+      const response = await axios.get("/api/settings/status");
+      return response.data.data ?? [];
+    },
+    select: (apiData) =>
+      apiData.map((item, index) => ({
+        ...item,
+        color: colordata[index % colordata.length].color,
+      })),
+  });
 
   if (loading) {
-    return <div className="mt-12 w-full h-full flex items-center justify-center">
-      <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
-    </div>;
+    return (
+      <div className="mt-12 w-full h-full flex items-center justify-center">
+        <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
+      </div>
+    );
   }
 
-  if (error) {
-    return <div>Error: {error}</div>;
+  if (isError) {
+    return <div className="text-sm text-red-500 py-8 text-center">Failed to fetch status data</div>;
   }
 
   return (

@@ -56,6 +56,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import ManufacturerEditForm from "../forms/settings/manufacturer/ManufacturerEditForm";
+import { ImageThumbnail } from "@/components/ImageThumbnail";
 
 export type Manufacturer = {
   _id: string;
@@ -64,6 +65,7 @@ export type Manufacturer = {
   support_url: string;
   support_phone: string;
   support_email: string;
+  image?: string;
 };
 
 export function ManufacturerTable() {
@@ -88,7 +90,6 @@ export function ManufacturerTable() {
       const response = await axios.get("/api/settings/manufacturer");
       return response.data.data;
     },
-    refetchInterval: 3000,
   });
 
   // Define handleDelete inside the component to access refetch
@@ -134,6 +135,19 @@ export function ManufacturerTable() {
       ),
       enableSorting: false,
       enableHiding: false,
+    },
+    {
+      id: "image",
+      header: "Logo",
+      cell: ({ row }) => (
+        <ImageThumbnail
+          src={row.original.image}
+          alt={row.original.name}
+          fallback="manufacturer"
+          size="sm"
+        />
+      ),
+      enableSorting: false,
     },
     {
       accessorKey: "name",

@@ -1,4 +1,8 @@
 import dbconnect from "@/lib/dbconnect";
+import { apiErrorResponse } from "@/lib/apiError";
+import { invalidateElasticIndexCache } from "@/lib/elasticSearch";
+import { getWorkspaceUserId } from "@/lib/serverAuth";
+import { ActionLogModel } from "@/models/ActionLog.model";
 import { AssetModel } from "@/models/Assets.model";
 import { AssetModel_Model } from "@/models/setting/AssetModels.model";
 import { CompanyModel } from "@/models/setting/Companies.model";
@@ -7,201 +11,274 @@ import { LocationModel } from "@/models/setting/Locations.model";
 import { ManufacturerModel } from "@/models/setting/Manufacturers.model";
 import { StatusModel } from "@/models/setting/Status.model";
 import { SupplierModel } from "@/models/setting/Suppliers.model";
+import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   await dbconnect();
   try {
-    const {
-      companyName,
-      asset_tag,
-      serial_number,
-      assetModelName,
-      statusName,
-      locationName,
-      supplierName,
-      manufacturerName,
-      departmentName,
-      asset_name,
-      warranty,
-      order_number,
-      purchase_date,
-      eol_date,
-      purchase_cost,
-    } = await req.json();
-
-    //fetching AssetModel data in asset
-    const CompanyExists = await CompanyModel.findOne({
-      name: companyName,
-    });
-    if (!CompanyExists) {
-      return Response.json(
-        {
-          success: false,
-          message: "Company does not exist",
-        },
-        { status: 404 }
-      );
-    }
-    //fetching AssetModel data in asset
-    const AssetModelExists = await AssetModel_Model.findOne({
-      name: assetModelName,
-    });
-    if (!AssetModelExists) {
-      return Response.json(
-        {
-          success: false,
-          message: "AssetsModel does not exist",
-        },
-        { status: 404 }
+    const workspaceId = await getWorkspaceUserId();
+    if (!workspaceId) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required" },
+        { status: 401 }
       );
     }
 
-    //fetching Status data in asset
-    const StatusExists = await StatusModel.findOne({
-      name: statusName,
-    });
-    if (!StatusExists) {
-      return Response.json(
-        {
-          success: false,
-          message: "Status does not exist",
-        },
-        { status: 404 }
+    const body = await req.json();
+
+    // Helper to resolve entity either by ObjectId or by string name scoped to workspace
+    const resolveEntity = async (
+      model: mongoose.Model<any>,
+      idOrName: string | undefined,
+      nameKey = "name"
+    ): Promise<{ _id: mongoose.Types.ObjectId } | null> => {
+      if (!idOrName) return null;
+      if (mongoose.Types.ObjectId.isValid(idOrName)) {
+        const found = await model
+          .findOne({ _id: idOrName, userId: workspaceId })
+          .select("_id")
+          .lean<{ _id: mongoose.Types.ObjectId }>();
+        if (found) return found;
+      }
+      return await model
+        .findOne({ userId: workspaceId, [nameKey]: idOrName })
+        .select("_id")
+        .lean<{ _id: mongoose.Types.ObjectId }>();
+    };
+
+    // Parallelize all 7 entity resolutions simultaneously
+    const [
+      company,
+      assetModel,
+      status,
+      location,
+      supplier,
+      manufacturer,
+      department,
+    ] = await Promise.all([
+      resolveEntity(CompanyModel, body.company || body.companyName || body.companyId),
+      resolveEntity(AssetModel_Model, body.asset_model || body.assetModelName || body.assetModelId),
+      resolveEntity(StatusModel, body.status || body.statusName || body.statusId),
+      resolveEntity(LocationModel, body.location || body.locationName || body.locationId),
+      resolveEntity(SupplierModel, body.supplier || body.supplierName || body.supplierId),
+      resolveEntity(ManufacturerModel, body.manufacturer || body.manufacturerName || body.manufacturerId),
+      resolveEntity(DepartmentModel, body.department || body.departmentName || body.departmentId),
+    ]);
+
+    if (!company) {
+      return NextResponse.json(
+        { success: false, message: "Company not found" },
+        { status: 400 }
+      );
+    }
+    if (!assetModel) {
+      return NextResponse.json(
+        { success: false, message: "Asset Model not found" },
+        { status: 400 }
+      );
+    }
+    if (!status) {
+      return NextResponse.json(
+        { success: false, message: "Status not found" },
+        { status: 400 }
+      );
+    }
+    if (!location) {
+      return NextResponse.json(
+        { success: false, message: "Location not found" },
+        { status: 400 }
+      );
+    }
+    if (!supplier) {
+      return NextResponse.json(
+        { success: false, message: "Supplier not found" },
+        { status: 400 }
+      );
+    }
+    if (!manufacturer) {
+      return NextResponse.json(
+        { success: false, message: "Manufacturer not found" },
+        { status: 400 }
+      );
+    }
+    if (!department) {
+      return NextResponse.json(
+        { success: false, message: "Department not found" },
+        { status: 400 }
       );
     }
 
-    //fetching Location data in asset
-    const LocationExists = await LocationModel.findOne({
-      name: locationName,
-    });
-    if (!LocationExists) {
-      return Response.json(
-        {
-          success: false,
-          message: "Location does not exist",
-        },
-        { status: 404 }
+    if (!body.asset_tag) {
+      return NextResponse.json(
+        { success: false, message: "Asset tag is required" },
+        { status: 400 }
       );
     }
 
-    //fetching Suppliers data in asset
-    const SupplierExists = await SupplierModel.findOne({
-      name: supplierName,
-    });
-    if (!SupplierExists) {
-      return Response.json(
-        {
-          success: false,
-          message: "supplier does not exist",
-        },
-        { status: 404 }
+    if (!body.serial_number) {
+      return NextResponse.json(
+        { success: false, message: "Serial number is required" },
+        { status: 400 }
       );
     }
-    //fetching manufacturer data in asset
-    const ManufacturerExists = await ManufacturerModel.findOne({
-      name: manufacturerName,
+
+    const existingAsset = await AssetModel.findOne({
+      userId: workspaceId,
+      $or: [
+        { asset_tag: body.asset_tag },
+        { serial_number: body.serial_number },
+      ],
     });
-    if (!ManufacturerExists) {
-      return Response.json(
+
+    if (existingAsset) {
+      return NextResponse.json(
         {
           success: false,
-          message: "manufacturer does not exist",
+          message:
+            existingAsset.asset_tag === body.asset_tag
+              ? `Asset Tag '${body.asset_tag}' already exists`
+              : `Serial Number '${body.serial_number}' already exists`,
         },
-        { status: 404 }
-      );
-    }
-    const DepartmentExists = await DepartmentModel.findOne({
-      name: departmentName,
-    });
-    if (!DepartmentExists) {
-      return Response.json(
-        {
-          success: false,
-          message: "Department does not exist",
-        },
-        { status: 404 }
+        { status: 409 }
       );
     }
 
     const asset = new AssetModel({
-      company: CompanyExists._id,
-      asset_tag,
-      serial_number,
-      asset_model: AssetModelExists._id,
-      status: StatusExists._id,
-      location: LocationExists._id,
-      supplier: SupplierExists._id,
-      manufacturer: ManufacturerExists._id,
-      department: DepartmentExists._id,
-      asset_name,
-      warranty,
-      order_number,
-      purchase_date,
-      eol_date,
-      purchase_cost,
+      userId: workspaceId,
+      company: company._id,
+      asset_tag: body.asset_tag,
+      serial_number: body.serial_number,
+      asset_model: assetModel._id,
+      status: status._id,
+      location: location._id,
+      supplier: supplier._id,
+      manufacturer: manufacturer._id,
+      department: department._id,
+      asset_name: body.asset_name,
+      warranty: body.warranty ? Number(body.warranty) : 0,
+      order_number: body.order_number,
+      purchase_date: body.purchase_date
+        ? new Date(body.purchase_date)
+        : new Date(),
+      eol_date: body.eol_date ? new Date(body.eol_date) : undefined,
+      purchase_cost: body.purchase_cost ? Number(body.purchase_cost) : 0,
+      assigned_to: body.assigned_to || null,
+      assigned_type: body.assigned_type || null,
+      checkout_date: body.checkout_date ? new Date(body.checkout_date) : null,
+      expected_checkin_date: body.expected_checkin_date
+        ? new Date(body.expected_checkin_date)
+        : null,
+      notes: body.notes,
+      image: body.image || undefined,
     });
 
     await asset.save();
 
-    return Response.json(
+    // Log the creation
+    try {
+      await ActionLogModel.create({
+        userId: workspaceId,
+        item_id: asset._id,
+        item_type: "Asset",
+        item_name: asset.asset_name || asset.asset_tag,
+        action_type: "create",
+        notes: "Asset created",
+      });
+    } catch (logErr) {
+      console.error("ActionLog error:", logErr);
+    }
+
+    invalidateElasticIndexCache(workspaceId);
+
+    return NextResponse.json(
       {
         success: true,
         message: "Asset created successfully",
+        data: asset,
       },
       { status: 201 }
     );
-  } catch (error) {
-    console.error("Error while creating asset", error);
-    return Response.json(
-      {
-        success: false,
-        message: "Error while creating asset",
-      },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, "Error while creating asset", "Error while creating asset:");
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   await dbconnect();
   try {
+    const workspaceId = await getWorkspaceUserId();
+    if (!workspaceId) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(req.url);
+    const statusParam = searchParams.get("status");
+    const searchParam = searchParams.get("search");
+    const assignedParam = searchParams.get("assigned");
+
+    const filter: Record<string, any> = { userId: workspaceId };
+
+    // Filter by status if provided (by name or ID or special status)
+    if (statusParam) {
+      if (statusParam.toLowerCase() === "checkedout") {
+        filter.assigned_to = { $ne: null };
+      } else if (mongoose.Types.ObjectId.isValid(statusParam)) {
+        filter.status = statusParam;
+      } else {
+        const foundStatus = await StatusModel.findOne({
+          userId: workspaceId,
+          name: { $regex: new RegExp(`^${statusParam}$`, "i") },
+        });
+        if (foundStatus) {
+          filter.status = foundStatus._id;
+        } else {
+          return NextResponse.json({
+            success: true,
+            message: "Assets fetched successfully",
+            data: [],
+          });
+        }
+      }
+    }
+
+    // Filter by assigned status (checkout)
+    if (assignedParam === "true") {
+      filter.assigned_to = { $ne: null };
+    } else if (assignedParam === "false") {
+      filter.assigned_to = null;
+    }
+
+    // Search keyword
+    if (searchParam) {
+      filter.$or = [
+        { asset_tag: { $regex: searchParam, $options: "i" } },
+        { serial_number: { $regex: searchParam, $options: "i" } },
+        { asset_name: { $regex: searchParam, $options: "i" } },
+      ];
+    }
+
     const query = [
-      {
-        path: "company",
-        select: "name",
-      },
-      {
-        path: "asset_model",
-        select: "name",
-      },
-      {
-        path: "status",
-        select: "name",
-      },
-      {
-        path: "location",
-        select: "name",
-      },
-      {
-        path: "manufacturer",
-        select: "name",
-      },
-      {
-        path: "supplier",
-        select: "name",
-      },
-      {
-        path: "department",
-        select: "name",
-      },
+      { path: "company", select: "name" },
+      { path: "asset_model", select: "name model_no image" },
+      { path: "status", select: "name type" },
+      { path: "location", select: "name" },
+      { path: "manufacturer", select: "name" },
+      { path: "supplier", select: "name" },
+      { path: "department", select: "name" },
+      { path: "assigned_to", select: "name email first_name last_name username" },
     ];
-    const assets = await AssetModel.find()
+
+    const assets = await AssetModel.find(filter)
+      .select("-qr_code -__v")
       .sort({ createdAt: -1 })
       .populate(query)
       .lean();
 
-    return Response.json(
+    return NextResponse.json(
       {
         success: true,
         message: "Assets fetched successfully",
@@ -211,7 +288,7 @@ export async function GET() {
     );
   } catch (error) {
     console.error("Error while fetching assets", error);
-    return Response.json(
+    return NextResponse.json(
       {
         success: false,
         message: "Error while fetching assets",
@@ -223,27 +300,61 @@ export async function GET() {
 
 export async function DELETE(req: NextRequest) {
   await dbconnect();
+  const workspaceId = await getWorkspaceUserId();
+  if (!workspaceId) {
+    return NextResponse.json(
+      { success: false, message: "Authentication required" },
+      { status: 401 }
+    );
+  }
+
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
-  if (!id) {
-    return NextResponse.json({ message: "Missing asset ID" }, { status: 400 });
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    return NextResponse.json(
+      { success: false, message: "Invalid or missing asset ID" },
+      { status: 400 }
+    );
   }
 
   try {
-    const deletedAsset = await AssetModel.findByIdAndDelete(id);
+    const deletedAsset = await AssetModel.findOneAndDelete({
+      _id: id,
+      userId: workspaceId,
+    });
     if (!deletedAsset) {
-      return NextResponse.json({ message: "Asset not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, message: "Asset not found" },
+        { status: 404 }
+      );
     }
 
+    // Log deletion
+    try {
+      await ActionLogModel.create({
+        userId: workspaceId,
+        item_id: deletedAsset._id,
+        item_type: "Asset",
+        item_name: deletedAsset.asset_name || deletedAsset.asset_tag,
+        action_type: "delete",
+        notes: "Asset deleted",
+      });
+    } catch (logErr) {
+      console.error("ActionLog error:", logErr);
+    }
+
+    invalidateElasticIndexCache(workspaceId);
+
     return NextResponse.json(
-      { message: "Asset deleted successfully", deletedAsset },
+      {
+        success: true,
+        message: "Asset deleted successfully",
+        deletedAsset,
+      },
       { status: 200 }
     );
   } catch (error: unknown) {
-    return NextResponse.json(
-      { message: "Error deleting asset", error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, "Error deleting asset", "Error deleting asset:");
   }
 }

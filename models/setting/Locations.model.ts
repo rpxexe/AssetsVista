@@ -1,7 +1,9 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
+import { defineModel } from "@/lib/defineModel";
 
 
 export interface Location extends Document{
+    userId?:string;
     name:string;
     assigned_assets?:number;
     assigned_accessories?:number;
@@ -9,9 +11,15 @@ export interface Location extends Document{
     address:string;
     city:string;
     state:string;
+    image?:string;
 }
 
 const LocationSchema:Schema<Location> = new Schema({
+    userId:{
+        type:String,
+        index:true,
+        trim:true
+    },
     name:{
         type:String,
         required:true
@@ -27,7 +35,18 @@ const LocationSchema:Schema<Location> = new Schema({
     },
     state:{
         type:String
+    },
+    image:{
+        type:String,
+        trim:true
     }
 },{timestamps:true,toJSON:{virtuals:true},toObject:{virtuals:true}})
 
-export const LocationModel:Model<Location> = (mongoose.models.Location) || mongoose.model<Location>("Location",LocationSchema)
+LocationSchema.index({ userId: 1, name: 1 });
+LocationSchema.index({ createdAt: -1 });
+LocationSchema.index({ name: 1 });
+
+export const LocationModel: Model<Location> = defineModel<Location>(
+  "Location",
+  LocationSchema
+);

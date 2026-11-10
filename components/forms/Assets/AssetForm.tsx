@@ -40,7 +40,9 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "../../ui/button";
 import { Calendar } from "../../ui/calendar";
+import { useQueryClient } from "@tanstack/react-query";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ImageUploadField } from "@/components/ImageUploadField";
 const formSchema = z.object({
   company: z.string().nonempty({
     message: "Company can't be empty",
@@ -91,11 +93,14 @@ const formSchema = z.object({
   purchase_cost: z.number({
     required_error: "Purchase Cost is required",
   }),
+  image: z.string().optional(),
 });
 
 const AssetForm = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -115,6 +120,7 @@ const AssetForm = () => {
       purchase_date: new Date(),
       eol_date: new Date(new Date().setFullYear(new Date().getFullYear() + 0)),
       purchase_cost: 0,
+      image: "",
     },
   });
   const watchWarranty = form.watch("warranty");
@@ -149,6 +155,7 @@ const AssetForm = () => {
         purchase_date: values.purchase_date,
         eol_date: values.eol_date,
         purchase_cost: values.purchase_cost,
+        image: values.image || "",
       });
 
       console.log(response.data);
@@ -159,7 +166,11 @@ const AssetForm = () => {
         variant: "default",
       });
 
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+      queryClient.invalidateQueries({ queryKey: ["counttotals"] });
+      queryClient.invalidateQueries({ queryKey: ["status"] });
       form.reset();
+      setOpen(false);
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       console.error("Submission error:", error);
@@ -173,15 +184,15 @@ const AssetForm = () => {
     }
   };
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="default">
           <PlusIcon className="size-4" aria-hidden="true" />
           Add Asset
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-full max-w-[550px] p-0">
-        <ScrollArea className="h-[90%] w-full p-6">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
           <DialogHeader>
             <DialogTitle className="text-2xl">Create Asset</DialogTitle>
           </DialogHeader>
@@ -533,6 +544,24 @@ const AssetForm = () => {
                   />
                 </div>
               </div>
+
+              <FormField
+                control={form.control}
+                name="image"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Asset Image</FormLabel>
+                    <FormControl>
+                      <ImageUploadField
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="https://example.com/asset-photo.png"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <DialogFooter className="gap-2 pt-2 sm:space-x-0">
                 <DialogClose asChild>

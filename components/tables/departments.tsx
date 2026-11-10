@@ -90,7 +90,6 @@ export type Department = {
         const response = await axios.get("/api/settings/department");
         return response.data.data;
       },
-      refetchInterval: 3000,
     });
   
     // Define handleDelete inside the component to access refetch

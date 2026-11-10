@@ -30,6 +30,8 @@ import { z } from "zod";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { useQueryClient } from "@tanstack/react-query";
+import { ImageUploadField } from "@/components/ImageUploadField";
 
 
 const formSchema = z.object({
@@ -51,11 +53,14 @@ const formSchema = z.object({
   support_email: z.string().nonempty({
     message: "Support Email can't be Empty",
   }),
+  image: z.string().optional(),
 });
 
 const ManufacturerForm = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -64,7 +69,8 @@ const ManufacturerForm = () => {
       url: "",
       support_url:"",
       support_email: "",
-      support_phone:""
+      support_phone: "",
+      image: "",
     },
   });
 
@@ -79,6 +85,7 @@ const ManufacturerForm = () => {
         support_url: values.support_url,
         support_phone: values.support_phone,
         support_email: values.support_email,
+        image: values.image || "",
       });
 
       console.log(response.data);
@@ -90,6 +97,8 @@ const ManufacturerForm = () => {
       });
 
       form.reset();
+      queryClient.invalidateQueries({ queryKey: ["manufacturers"] });
+      setOpen(false);
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       console.error("Submission error:", error);
@@ -104,15 +113,15 @@ const ManufacturerForm = () => {
     }
   };
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="default">
           <PlusIcon className="size-4" aria-hidden="true" />
           Add Manufacturer
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-full max-w-[550px] p-0">
-        <ScrollArea className="h-[100%] w-full p-6">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
           <DialogHeader>
             <DialogTitle className="text-2xl">Create Manufacturer</DialogTitle>
           </DialogHeader>
@@ -203,6 +212,24 @@ const ManufacturerForm = () => {
                         placeholder="+912545454454"
                         type="text"
                         {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="image"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Manufacturer Logo</FormLabel>
+                    <FormControl>
+                      <ImageUploadField
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="https://example.com/brand-logo.png"
                       />
                     </FormControl>
                     <FormMessage />

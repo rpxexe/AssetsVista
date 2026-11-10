@@ -31,6 +31,8 @@ import { z } from "zod";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { useQueryClient } from "@tanstack/react-query";
+import { ImageUploadField } from "@/components/ImageUploadField";
 
 const formSchema = z.object({
   name: z
@@ -50,13 +52,15 @@ const formSchema = z.object({
   city: z.string(),
   state:z.string().nonempty({
     message:"State can't be empty"
-  })
-  
+  }),
+  image: z.string().optional(),
 });
 
 const LocationForm = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -65,8 +69,8 @@ const LocationForm = () => {
       currency:"",
       address:"",
       city:"",
-      state:""
-        
+      state:"",
+      image: "",
     },
   });
 
@@ -80,9 +84,8 @@ const LocationForm = () => {
         currency:values.currency,
         address:values.address,
         city:values.city,
-        state:values.state
-
-
+        state:values.state,
+        image: values.image || "",
       });
 
       console.log(response.data);
@@ -94,6 +97,8 @@ const LocationForm = () => {
       });
 
       form.reset();
+      queryClient.invalidateQueries({ queryKey: ["locations"] });
+      setOpen(false);
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       console.error("Submission error:", error);
@@ -108,15 +113,15 @@ const LocationForm = () => {
     }
   };
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="default">
           <PlusIcon className="size-4" aria-hidden="true" />
           Add Location
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-full max-w-[550px] p-0">
-        <ScrollArea className="h-[100%] w-full p-6">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
           <DialogHeader>
             <DialogTitle className="text-2xl">Create Location</DialogTitle>
           </DialogHeader>
@@ -200,8 +205,24 @@ const LocationForm = () => {
                   </FormItem>
                 )}
               />
-              
-              
+
+              <FormField
+                control={form.control}
+                name="image"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location Image</FormLabel>
+                    <FormControl>
+                      <ImageUploadField
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="https://example.com/office-photo.png"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <DialogFooter className="gap-2 pt-2 sm:space-x-0">
                 <DialogClose asChild>

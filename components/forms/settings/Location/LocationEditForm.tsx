@@ -1,8 +1,8 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { Edit, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ImageUploadField } from "@/components/ImageUploadField";
 // Form Schema
 const formSchema = z.object({
   name: z
@@ -47,6 +48,7 @@ const formSchema = z.object({
   state: z.string().nonempty({
     message: "State can't be empty",
   }),
+  image: z.string().optional(),
 });
 
 type EditProps = {
@@ -55,6 +57,8 @@ type EditProps = {
 
 const LocationEditForm: React.FC<EditProps> = ({ id }) => {
   const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -63,7 +67,8 @@ const LocationEditForm: React.FC<EditProps> = ({ id }) => {
       currency: "",
       address: "",
       city: "",
-      state: ""
+      state: "",
+      image: "",
     },
   });
 
@@ -78,7 +83,7 @@ const LocationEditForm: React.FC<EditProps> = ({ id }) => {
   } = useQuery({
     queryKey: ["locations", id],
     queryFn: () => fetchLocation(id),
-    enabled: !!id,
+    enabled: open && Boolean(id),
   });
 
   useEffect(() => {
@@ -89,6 +94,7 @@ const LocationEditForm: React.FC<EditProps> = ({ id }) => {
         address: locationData.address,
         city: locationData.city,
         state: locationData.state,
+        image: locationData.image || "",
       });
     }
   }, [locationData, form]);
@@ -103,7 +109,8 @@ const LocationEditForm: React.FC<EditProps> = ({ id }) => {
           currency: values.currency,
           address: values.address,
           city: values.city,
-          state: values.state
+          state: values.state,
+          image: values.image ?? "",
         }
       );
 
@@ -112,6 +119,9 @@ const LocationEditForm: React.FC<EditProps> = ({ id }) => {
         description: "Location Updated Successfully",
         variant: "default",
       });
+      queryClient.invalidateQueries({ queryKey: ["locations"] });
+      queryClient.invalidateQueries({ queryKey: ["locations", id] });
+      setOpen(false);
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       toast({
@@ -124,7 +134,7 @@ const LocationEditForm: React.FC<EditProps> = ({ id }) => {
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
           size="icon"
@@ -134,8 +144,8 @@ const LocationEditForm: React.FC<EditProps> = ({ id }) => {
           <Edit size={20} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-full max-w-[550px] p-0">
-        <ScrollArea className="h-[100%] w-full p-6">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
           <DialogHeader>
             <DialogTitle className="text-2xl">Update Location</DialogTitle>
           </DialogHeader>
@@ -214,6 +224,24 @@ const LocationEditForm: React.FC<EditProps> = ({ id }) => {
                     <FormLabel>State</FormLabel>
                     <FormControl>
                       <Input placeholder="State" type="text" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="image"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location Image</FormLabel>
+                    <FormControl>
+                      <ImageUploadField
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="https://example.com/office-photo.png"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

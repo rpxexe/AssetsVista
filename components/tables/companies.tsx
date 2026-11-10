@@ -55,6 +55,7 @@ import {
 
 import { useQuery } from "@tanstack/react-query";
 import CompanyEditForm from "../forms/settings/company/CompanyEditForm";
+import { ImageThumbnail } from "@/components/ImageThumbnail";
 
 
 export type Company = {
@@ -64,6 +65,7 @@ export type Company = {
   assets:number;
   licenses:number;
   department:number;
+  image?: string;
 };
 
 export function CompanyTable() {
@@ -88,7 +90,6 @@ export function CompanyTable() {
       const response = await axios.get("/api/settings/company");
       return response.data.data;
     },
-    refetchInterval: 3000,
   });
 
   // Define handleDelete inside the component to access refetch
@@ -134,6 +135,19 @@ export function CompanyTable() {
       ),
       enableSorting: false,
       enableHiding: false,
+    },
+    {
+      id: "image",
+      header: "Logo",
+      cell: ({ row }) => (
+        <ImageThumbnail
+          src={row.original.image}
+          alt={row.original.name}
+          fallback="company"
+          size="sm"
+        />
+      ),
+      enableSorting: false,
     },
     {
       accessorKey: "name",

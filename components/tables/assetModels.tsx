@@ -54,7 +54,8 @@ import {
 } from "../ui/select";
 
 import { useQuery } from "@tanstack/react-query";
-import AssetModelEditForm from "../forms/settings/assetmodel/AssetModelEditFprm";
+import AssetModelEditForm from "../forms/settings/assetmodel/AssetModelEditForm";
+import { ImageThumbnail } from "@/components/ImageThumbnail";
 
 
 export type AssetModel = {
@@ -62,6 +63,7 @@ export type AssetModel = {
   name: string;
   model_no: string;
   assets:number;
+  image?: string;
   category: {
     name:string;
   }
@@ -89,7 +91,6 @@ export function AssetModelTable() {
       const response = await axios.get("/api/settings/assetmodel");
       return response.data.data;
     },
-    refetchInterval: 3000,
   });
 
   // Define handleDelete inside the component to access refetch
@@ -135,6 +136,19 @@ export function AssetModelTable() {
       ),
       enableSorting: false,
       enableHiding: false,
+    },
+    {
+      id: "image",
+      header: "Image",
+      cell: ({ row }) => (
+        <ImageThumbnail
+          src={row.original.image}
+          alt={row.original.name}
+          fallback="model"
+          size="sm"
+        />
+      ),
+      enableSorting: false,
     },
     {
       accessorKey: "name",

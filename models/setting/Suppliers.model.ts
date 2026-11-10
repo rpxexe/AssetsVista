@@ -1,4 +1,5 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
+import { defineModel } from "@/lib/defineModel";
 
 export interface Supplier extends Document{
     userId?: string;
@@ -12,6 +13,7 @@ export interface Supplier extends Document{
     licenses?:number;
     components?:number;
     consumables?:number;
+    image?:string;
 }
 const SupplierSchema: Schema<Supplier> = new Schema(
   {
@@ -36,9 +38,19 @@ const SupplierSchema: Schema<Supplier> = new Schema(
       type: String,
       required: true,
     },
+    image: {
+      type: String,
+      trim: true,
+    },
     
   },
   { timestamps: true, toJSON:{virtuals:true}, toObject:{virtuals:true} }
 );
 
-export const SupplierModel:Model<Supplier> = (mongoose.models.Supplier) || mongoose.model<Supplier>("Supplier",SupplierSchema)
+SupplierSchema.index({ createdAt: -1 });
+SupplierSchema.index({ name: 1 });
+
+export const SupplierModel: Model<Supplier> = defineModel<Supplier>(
+  "Supplier",
+  SupplierSchema
+);

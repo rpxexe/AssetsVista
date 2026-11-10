@@ -15,38 +15,90 @@ import {
   LayoutDashboard,
   Loader2,
   CloudAlert,
+  Users,
+  Rocket,
+  CheckCircle2,
+  Circle,
+  Database,
+  X,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { getClientErrorMessage } from "@/lib/errorMessages";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
 export type CountTotal = {
   Assets: number;
   Licenses: number;
   Accessories: number;
   Consumables: number;
   Components: number;
+  People: number;
 };
 
 export default function Page() {
-  const [total, setTotal] = useState<CountTotal | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [seedingDemo, setSeedingDemo] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await axios.get("/api/counttotals");
-        setTotal(response.data.data);
-        console.log(response.data.data);
-      } catch (err) {
-        setError("Failed to fetch data");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const {
+    data: total,
+    isLoading: loading,
+    isError: error,
+  } = useQuery<CountTotal>({
+    queryKey: ["counttotals"],
+    queryFn: async () => {
+      const response = await axios.get("/api/counttotals");
+      return response.data.data;
+    },
+    staleTime: 1000 * 60 * 2, // 2 minutes fresh dashboard counters
+  });
 
-    fetchData();
-  }, []);
+  const { data: setupStatus } = useQuery<{
+    setup_completed: boolean;
+    checklist?: Record<string, boolean>;
+  }>({
+    queryKey: ["setup-status"],
+    queryFn: async () => {
+      const res = await axios.get("/api/setup/status");
+      return res.data;
+    },
+    staleTime: 1000 * 60 * 10, // Setup completion rarely changes after initial onboarding
+  });
+
+  const isEmptyWorkspace =
+    Boolean(total) &&
+    total!.Assets === 0 &&
+    total!.Licenses === 0 &&
+    total!.Accessories === 0 &&
+    total!.Consumables === 0 &&
+    total!.Components === 0 &&
+    total!.People === 0;
+
+  const handleLoadDemoData = async () => {
+    setSeedingDemo(true);
+    try {
+      const res = await axios.post("/api/demo/seed");
+      await queryClient.invalidateQueries();
+      toast({
+        title: "Demo Data Loaded",
+        description:
+          res.data?.message ||
+          "Sample inventory, people, settings, and activity logs added to your workspace.",
+      });
+    } catch (err) {
+      toast({
+        title: "Could not load demo data",
+        description: getClientErrorMessage(err, "Failed to populate demo data."),
+        variant: "destructive",
+      });
+    } finally {
+      setSeedingDemo(false);
+    }
+  };
 
   const data = [
     {
@@ -79,20 +131,107 @@ export default function Page() {
       icon: Microchip,
       url: "/components",
     },
-    // {
-    //   title: "People",
-
-    //   icon: Users,
-    //   url: "/people",
-    // },
+    {
+      title: "People",
+      count: total?.People ?? 0,
+      icon: Users,
+      url: "/people",
+    },
   ];
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0 ">
-      <div className="border rounded-[2.5em] h-full p-4 w-full flex items-center space-x-2">
-        <LayoutDashboard strokeWidth={2.2} size={28} />
-        <h3 className="text-3xl font-semibold ">Dashboard</h3>
+      <div className="border rounded-[2.5em] h-full p-4 w-full flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center space-x-2">
+          <LayoutDashboard strokeWidth={2.2} size={28} />
+          <h3 className="text-3xl font-semibold ">Dashboard</h3>
+        </div>
+        {isEmptyWorkspace && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleLoadDemoData}
+            disabled={seedingDemo}
+            className="gap-2 rounded-full"
+          >
+            {seedingDemo ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Database className="h-4 w-4" />
+            )}
+            {seedingDemo ? "Loading Demo Data..." : "Load Demo Data"}
+          </Button>
+        )}
       </div>
-      <div className="grid auto-rows-min gap-2 md:grid-cols-5">
+
+      {/* Onboarding Setup Banner for New Workspaces */}
+      {setupStatus && !setupStatus.setup_completed && !bannerDismissed && (
+        <div className="border bg-card rounded-[2em] p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative">
+          <div className="space-y-2 pr-6">
+            <div className="flex items-center gap-2">
+              <Rocket className="h-5 w-5 text-foreground" />
+              <h4 className="font-semibold text-base">
+                Welcome to AssetsVista — Finish Your Workspace Setup
+              </h4>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Run the 4-step Setup Wizard to verify pre-flight checks, configure your organization,
+              and seed standard status labels &amp; categories — or populate demo records immediately.
+            </p>
+            {setupStatus.checklist && (
+              <div className="flex flex-wrap gap-3 pt-1 text-xs">
+                {[
+                  { label: "Company", done: setupStatus.checklist.hasCompany },
+                  { label: "Location", done: setupStatus.checklist.hasLocation },
+                  { label: "Status Labels", done: setupStatus.checklist.hasStatuses },
+                  { label: "Categories", done: setupStatus.checklist.hasCategories },
+                ].map((c) => (
+                  <span key={c.label} className="inline-flex items-center gap-1">
+                    {c.done ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-foreground" />
+                    ) : (
+                      <Circle className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                    <span className={c.done ? "text-foreground font-medium" : "text-muted-foreground"}>
+                      {c.label}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              onClick={handleLoadDemoData}
+              disabled={seedingDemo}
+              className="gap-2 rounded-full"
+            >
+              {seedingDemo ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Database className="h-4 w-4" />
+              )}
+              {seedingDemo ? "Loading..." : "Load Demo Data"}
+            </Button>
+            <Link href="/setup">
+              <Button className="gap-2 rounded-full">
+                <Rocket className="h-4 w-4" />
+                Launch Setup Wizard
+              </Button>
+            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setBannerDismissed(true)}
+              aria-label="Dismiss setup banner"
+              className="rounded-full"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+      <div className="grid auto-rows-min gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         {data.map((item) => (
           <div
             key={item.title}

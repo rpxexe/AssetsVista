@@ -1,4 +1,7 @@
 import dbconnect from "@/lib/dbconnect";
+import { apiErrorResponse } from "@/lib/apiError";
+import { invalidateElasticIndexCache } from "@/lib/elasticSearch";
+import { getWorkspaceUserId } from "@/lib/serverAuth";
 import { LocationModel } from "@/models/setting/Locations.model";
 
 import mongoose from "mongoose";
@@ -9,9 +12,15 @@ export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  // Extract params from context
-
   await dbconnect();
+  const workspaceId = await getWorkspaceUserId();
+  if (!workspaceId) {
+    return NextResponse.json(
+      { success: false, message: "Authentication required" },
+      { status: 401 }
+    );
+  }
+
   const { id } = await context.params;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
@@ -22,7 +31,7 @@ export async function GET(
   }
 
   try {
-    const Location = await LocationModel.findById(id);
+    const Location = await LocationModel.findOne({ _id: id, userId: workspaceId }).lean();
 
     return NextResponse.json(
       {
@@ -48,6 +57,13 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   await dbconnect();
+  const workspaceId = await getWorkspaceUserId();
+  if (!workspaceId) {
+    return NextResponse.json(
+      { success: false, message: "Authentication required" },
+      { status: 401 }
+    );
+  }
 
   const { id } = await context.params;
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
@@ -60,18 +76,22 @@ export async function PUT(
   try {
     const data = await req.json();
 
-    // Update asset
-    const updatedLocation = await LocationModel.findByIdAndUpdate(
-      id,
-      {
-        name: data.name,
-        currency: data.currency,
-        address: data.address,
-        city: data.city,
-        state: data.state,
+    const locationUpdate: Record<string, any> = {
+      name: data.name,
+      currency: data.currency,
+      address: data.address,
+      city: data.city,
+      state: data.state,
+    };
+    if (data.image !== undefined) {
+      locationUpdate.image = data.image;
+    }
 
-      },
-      { new: true, runValidators: true } // Return updated document and apply validation
+    // Update location
+    const updatedLocation = await LocationModel.findOneAndUpdate(
+      { _id: id, userId: workspaceId },
+      locationUpdate,
+      { new: true, runValidators: true }
     );
 
     if (!updatedLocation) {
@@ -80,6 +100,8 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    invalidateElasticIndexCache(workspaceId);
 
     return NextResponse.json(
       {
@@ -90,11 +112,7 @@ export async function PUT(
       { status: 200 }
     );
   } catch (error: unknown) {
-    console.error("Error while updating Location", error);
-    return NextResponse.json(
-      { success: false, message: "Server error", error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, "Error while updating location.", "Error while updating Location:");
   }
 }
 

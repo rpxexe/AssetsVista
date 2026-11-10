@@ -41,7 +41,8 @@ import { z } from "zod";
 import { Button } from "../../ui/button";
 import { Calendar } from "../../ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ImageUploadField } from "@/components/ImageUploadField";
 const formSchema = z.object({
   company: z.string().nonempty({
     message: "Company can't be empty",
@@ -92,6 +93,7 @@ const formSchema = z.object({
   purchase_cost: z.number({
     required_error: "Purchase Cost is required",
   }),
+  image: z.string().optional(),
 });
 type Editprops = {
   id: string;
@@ -99,6 +101,8 @@ type Editprops = {
 const AssetEditForm: React.FC<Editprops> = ({ id }) => {
   const { toast } = useToast();
   const [loading, setIsLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -118,6 +122,7 @@ const AssetEditForm: React.FC<Editprops> = ({ id }) => {
       purchase_date: new Date(),
       eol_date: new Date(),
       purchase_cost: 0,
+      image: "",
     },
   });
   const fetchAsset = async (id: string) => {
@@ -129,7 +134,7 @@ const AssetEditForm: React.FC<Editprops> = ({ id }) => {
   } = useQuery({
     queryKey: ["asset", id], // Cache the query based on `id`
     queryFn: () => fetchAsset(id),
-    enabled: Boolean(id), // Only run when `id` is valid
+    enabled: open && Boolean(id), // Fetch only when dialog is opened
   });
   useEffect(() => {
     if (assetData) {
@@ -154,6 +159,7 @@ const AssetEditForm: React.FC<Editprops> = ({ id }) => {
           ? new Date(assetData.eol_date)
           : new Date(),
         purchase_cost: assetData.purchase_cost || 0,
+        image: assetData.image || "",
       });
     }
   }, [assetData, form]);
@@ -180,6 +186,7 @@ const AssetEditForm: React.FC<Editprops> = ({ id }) => {
         purchase_date: values.purchase_date,
         eol_date: values.eol_date,
         purchase_cost: values.purchase_cost,
+        image: values.image ?? "",
       });
 
       console.log(response.data);
@@ -189,6 +196,9 @@ const AssetEditForm: React.FC<Editprops> = ({ id }) => {
         description: "Asset Updated Successfully",
         variant: "default",
       });
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+      queryClient.invalidateQueries({ queryKey: ["asset", id] });
+      setOpen(false);
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       console.error("Submission error:", error);
@@ -203,7 +213,7 @@ const AssetEditForm: React.FC<Editprops> = ({ id }) => {
     }
   };
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
           size="icon"
@@ -213,8 +223,8 @@ const AssetEditForm: React.FC<Editprops> = ({ id }) => {
           <Edit size={20} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-full max-w-[550px] p-0">
-        <ScrollArea className="h-[80%] w-full p-6">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
           <DialogHeader>
             <DialogTitle className="text-2xl">Edit Asset</DialogTitle>
           </DialogHeader>
@@ -578,6 +588,24 @@ const AssetEditForm: React.FC<Editprops> = ({ id }) => {
                   />
                 </div>
               </div>
+
+              <FormField
+                control={form.control}
+                name="image"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Asset Image</FormLabel>
+                    <FormControl>
+                      <ImageUploadField
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="https://example.com/asset-photo.png"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <DialogFooter className="gap-2 pt-2 sm:space-x-0">
                 <DialogClose asChild>

@@ -6,20 +6,46 @@ import { KeyRound, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs";
-
-
-
+import axios from "axios";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Login() {
-  const { user, isLoaded } = useUser()
+  const { user, isLoaded } = useUser();
   const router = useRouter();
-
+  const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (user) {
-      router.replace("/admin");
-    }
-  }, [user, router]);
+    if (!user) return;
+    let active = true;
+
+    const routeUser = async () => {
+      try {
+        const [, setupRes] = await Promise.all([
+          axios.post("/api/users/sync").catch(() => null),
+          axios.get("/api/setup/status").catch(() => null),
+        ]);
+
+        queryClient.invalidateQueries({ queryKey: ["current-db-user", user.id] });
+
+        const needsSetup =
+          setupRes?.data &&
+          !setupRes.data?.setup_completed &&
+          setupRes.data?.counts?.companies === 0 &&
+          setupRes.data?.counts?.statuses === 0;
+
+        if (active) {
+          router.replace(needsSetup ? "/setup" : "/admin");
+        }
+      } catch {
+        if (active) router.replace("/admin");
+      }
+    };
+
+    routeUser();
+    return () => {
+      active = false;
+    };
+  }, [user, router, queryClient]);
   if (!isLoaded) {
     return (
       <div className="flex justify-center items-center min-h-[0vh]">
