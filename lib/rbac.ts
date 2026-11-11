@@ -17,6 +17,7 @@ export interface RolePermissions {
   canManageSettings: boolean;
   canViewReports: boolean;
   canRunSetup: boolean;
+  canManageApiKeys: boolean;
 }
 
 /**
@@ -77,6 +78,7 @@ export const PERMISSION_MATRIX: Record<UserRole, RolePermissions> = {
     canManageSettings: true,
     canViewReports: true,
     canRunSetup: true,
+    canManageApiKeys: true,
   },
   assets_user: {
     canViewAssets: true,
@@ -93,6 +95,7 @@ export const PERMISSION_MATRIX: Record<UserRole, RolePermissions> = {
     canManageSettings: false,
     canViewReports: true,
     canRunSetup: false,
+    canManageApiKeys: true,
   },
   requester: {
     canViewAssets: true,
@@ -109,6 +112,7 @@ export const PERMISSION_MATRIX: Record<UserRole, RolePermissions> = {
     canManageSettings: false,
     canViewReports: false,
     canRunSetup: false,
+    canManageApiKeys: false,
   },
 };
 
@@ -127,6 +131,7 @@ export const PERMISSION_LABELS: { key: keyof RolePermissions; label: string }[] 
   { key: "canManageSettings", label: "Manage Companies, Locations & Taxonomy" },
   { key: "canViewReports", label: "View Depreciation, Audit & Compliance Reports" },
   { key: "canRunSetup", label: "Run System Setup & Database Wizard" },
+  { key: "canManageApiKeys", label: "Generate & Revoke Personal API Keys" },
 ];
 
 export function getPermissionsForRole(role?: string | null): RolePermissions {

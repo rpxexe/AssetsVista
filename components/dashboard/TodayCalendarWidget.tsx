@@ -5,7 +5,8 @@ import Link from "next/link";
 import axios from "axios";
 import { format, isSameDay } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronUp } from "lucide-react";
+import { Skeleton } from "skullet/react";
 import { Button } from "@/components/ui/button";
 import type { DashboardCalendarEvent } from "@/app/api/dashboard/calendar-events/route";
 
@@ -82,45 +83,84 @@ export function TodayCalendarWidget() {
 
         {!collapsed && (
           <div className="mt-3 max-h-[340px] overflow-auto space-y-3">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-14">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : grouped.length === 0 ? (
-              <div className="py-12 text-center text-xs text-muted-foreground">
-                No scheduled maintenance, audits, EOL dates, or renewals in the next 7 days.
-              </div>
-            ) : (
-              grouped.map(([key, grp]) => (
-                <div key={key} className="border rounded-xl overflow-hidden">
-                  <div className="flex items-center justify-between px-3 py-1.5 bg-muted/50 border-b text-xs font-medium">
-                    <span>{grp.label}</span>
-                    <span className="text-muted-foreground">{grp.fullDate}</span>
-                  </div>
-                  <div className="divide-y">
-                    {grp.items.map((ev) => (
-                      <Link
-                        key={ev.id}
-                        href={ev.href}
-                        className="flex items-start gap-2.5 px-3 py-2 text-xs hover:bg-muted/40 transition-colors"
-                      >
-                        <span className="text-[11px] text-muted-foreground shrink-0 w-11 pt-0.5">
-                          {ev.allDay ? "all-day" : format(new Date(ev.start), "HH:mm")}
-                        </span>
-                        <span className="h-2 w-2 rounded-full bg-primary shrink-0 mt-1.5" />
-                        <span
-                          className={`leading-snug ${
-                            ev.completed ? "line-through text-muted-foreground" : "text-foreground"
-                          }`}
-                        >
-                          {ev.title}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
+            <Skeleton
+              id="dashboard-today-calendar"
+              loading={isLoading}
+              label="Loading upcoming calendar events"
+              empty={!isLoading && grouped.length === 0}
+              emptyMessage={
+                <div className="py-12 text-center text-xs text-muted-foreground">
+                  No scheduled maintenance, audits, EOL dates, or renewals in the next 7 days.
                 </div>
-              ))
-            )}
+              }
+            >
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[
+                    {
+                      label: "Today",
+                      fullDate: "October 24, 2026",
+                      items: ["Scheduled audit: MacBook Pro 16", "Warranty check-in due"],
+                    },
+                    {
+                      label: "Tomorrow",
+                      fullDate: "October 25, 2026",
+                      items: ["Software license renewal reminder"],
+                    },
+                  ].map((grp) => (
+                    <div key={grp.label} className="border rounded-xl overflow-hidden">
+                      <div className="flex items-center justify-between px-3 py-1.5 bg-muted/50 border-b text-xs font-medium">
+                        <span>{grp.label}</span>
+                        <span className="text-muted-foreground">{grp.fullDate}</span>
+                      </div>
+                      <div className="divide-y">
+                        {grp.items.map((title) => (
+                          <div key={title} className="flex items-start gap-2.5 px-3 py-2 text-xs">
+                            <span className="text-[11px] text-muted-foreground shrink-0 w-11 pt-0.5">
+                              all-day
+                            </span>
+                            <span className="h-2 w-2 rounded-full bg-primary shrink-0 mt-1.5" />
+                            <span className="leading-snug">{title}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {grouped.map(([key, grp]) => (
+                    <div key={key} className="border rounded-xl overflow-hidden">
+                      <div className="flex items-center justify-between px-3 py-1.5 bg-muted/50 border-b text-xs font-medium">
+                        <span>{grp.label}</span>
+                        <span className="text-muted-foreground">{grp.fullDate}</span>
+                      </div>
+                      <div className="divide-y">
+                        {grp.items.map((ev) => (
+                          <Link
+                            key={ev.id}
+                            href={ev.href}
+                            className="flex items-start gap-2.5 px-3 py-2 text-xs hover:bg-muted/40 transition-colors"
+                          >
+                            <span className="text-[11px] text-muted-foreground shrink-0 w-11 pt-0.5">
+                              {ev.allDay ? "all-day" : format(new Date(ev.start), "HH:mm")}
+                            </span>
+                            <span className="h-2 w-2 rounded-full bg-primary shrink-0 mt-1.5" />
+                            <span
+                              className={`leading-snug ${
+                                ev.completed ? "line-through text-muted-foreground" : "text-foreground"
+                              }`}
+                            >
+                              {ev.title}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Skeleton>
           </div>
         )}
       </div>

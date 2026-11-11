@@ -5,6 +5,8 @@ import Link from "next/link";
 import axios from "axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { Skeleton } from "skullet/react";
+import { SampleTableRows } from "@/components/skeletons/AppSkeletons";
 import {
   Activity,
   ArrowRight,
@@ -570,10 +572,11 @@ export function AdminSettingsHub() {
             System &amp; Security Controls
           </h2>
           {isLoading && (
-            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Loading workspace configuration...
-            </span>
+            <Skeleton loading label="Loading workspace configuration" className="rounded-md">
+              <span className="text-xs text-muted-foreground">
+                Loading workspace configuration...
+              </span>
+            </Skeleton>
           )}
         </div>
 
@@ -697,11 +700,11 @@ export function AdminSettingsHub() {
         </div>
 
         <div className="p-4">
-          {isLoading || !systemInfo ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
+          <Skeleton
+            id="admin-system-info"
+            loading={isLoading || !systemInfo}
+            label="Loading system information"
+          >
             <div className="border rounded-xl overflow-hidden">
               <Table>
                 <TableBody>
@@ -709,35 +712,43 @@ export function AdminSettingsHub() {
                     <TableCell className="text-xs font-medium text-muted-foreground w-48">
                       AssetsVista Version
                     </TableCell>
-                    <TableCell className="text-xs font-mono">{systemInfo.appVersion}</TableCell>
+                    <TableCell className="text-xs font-mono">
+                      {systemInfo?.appVersion || "v0.1.0"}
+                    </TableCell>
                     <TableCell className="text-xs font-medium text-muted-foreground w-48">
                       Runtime Stack
                     </TableCell>
-                    <TableCell className="text-xs font-mono">{systemInfo.framework}</TableCell>
+                    <TableCell className="text-xs font-mono">
+                      {systemInfo?.framework || "Next.js 16 (App Router)"}
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell className="text-xs font-medium text-muted-foreground">
                       Node.js Version
                     </TableCell>
-                    <TableCell className="text-xs font-mono">{systemInfo.nodeVersion}</TableCell>
+                    <TableCell className="text-xs font-mono">
+                      {systemInfo?.nodeVersion || "v20.x"}
+                    </TableCell>
                     <TableCell className="text-xs font-medium text-muted-foreground">
                       Authentication
                     </TableCell>
-                    <TableCell className="text-xs">{systemInfo.authProvider}</TableCell>
+                    <TableCell className="text-xs">
+                      {systemInfo?.authProvider || "Session Cookie Auth"}
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell className="text-xs font-medium text-muted-foreground">
                       Timezone / Date Format
                     </TableCell>
                     <TableCell className="text-xs font-mono">
-                      {systemInfo.timezone} · {settings?.date_format || "MMM d, yyyy"}
+                      {systemInfo?.timezone || "UTC"} · {settings?.date_format || "MMM d, yyyy"}
                     </TableCell>
                     <TableCell className="text-xs font-medium text-muted-foreground">
                       Database Driver
                     </TableCell>
                     <TableCell className="text-xs font-mono">
-                      {systemInfo.databaseDriver} ({systemInfo.databaseName} ·{" "}
-                      {systemInfo.dbLatencyMs}ms)
+                      {systemInfo?.databaseDriver || "Mongoose"} ({systemInfo?.databaseName || "assetsvista"} ·{" "}
+                      {systemInfo?.dbLatencyMs ?? 12}ms)
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -745,28 +756,34 @@ export function AdminSettingsHub() {
                       Mail &amp; Alert Delivery
                     </TableCell>
                     <TableCell className="text-xs">
-                      {systemInfo.mailProvider}
+                      {systemInfo?.mailProvider || "Resend"}
                       {settings?.alert_email ? ` (${settings.alert_email})` : ""}
                     </TableCell>
                     <TableCell className="text-xs font-medium text-muted-foreground">
                       Search Engine
                     </TableCell>
-                    <TableCell className="text-xs font-mono">{systemInfo.searchEngine}</TableCell>
+                    <TableCell className="text-xs font-mono">
+                      {systemInfo?.searchEngine || "Elastic Fuzzy Search"}
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell className="text-xs font-medium text-muted-foreground">
                       Workspace Scope ID
                     </TableCell>
-                    <TableCell className="text-xs font-mono">{systemInfo.workspaceId}</TableCell>
+                    <TableCell className="text-xs font-mono">
+                      {systemInfo?.workspaceId || "ws_default"}
+                    </TableCell>
                     <TableCell className="text-xs font-medium text-muted-foreground">
                       Active Admin Account
                     </TableCell>
-                    <TableCell className="text-xs font-mono">{systemInfo.adminEmail}</TableCell>
+                    <TableCell className="text-xs font-mono">
+                      {systemInfo?.adminEmail || "admin@company.com"}
+                    </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
             </div>
-          )}
+          </Skeleton>
         </div>
       </div>
 
@@ -1470,69 +1487,91 @@ export function AdminSettingsHub() {
             actions={[]}
           />
           <div className="border rounded-xl overflow-hidden max-h-[55vh] overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
-                    <Checkbox
-                      checked={attemptBulk.headerCheckState(visibleAttemptIds)}
-                      onCheckedChange={(checked) =>
-                        attemptBulk.toggleAll(visibleAttemptIds, !!checked)
-                      }
-                      aria-label="Select all login events"
-                    />
-                  </TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Event</TableHead>
-                  <TableHead>Result</TableHead>
-                  <TableHead>Details</TableHead>
-                  <TableHead className="text-right">Time</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loadingAttempts ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      <Loader2 className="h-5 w-5 animate-spin inline mr-2 text-muted-foreground" />
-                      Loading attempts...
-                    </TableCell>
-                  </TableRow>
-                ) : loginAttempts.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-xs text-muted-foreground">
-                      No login events recorded yet.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  loginAttempts.map((row) => (
-                    <TableRow key={row._id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={attemptBulk.isSelected(row._id)}
-                          onCheckedChange={(checked) =>
-                            attemptBulk.toggleOne(row._id, !!checked)
-                          }
-                          aria-label={`Select login event ${row.email}`}
-                        />
-                      </TableCell>
-                      <TableCell className="text-xs font-mono">{row.email}</TableCell>
-                      <TableCell className="text-xs capitalize">{row.action}</TableCell>
-                      <TableCell className="text-xs">
-                        <Badge variant={row.success ? "secondary" : "destructive"}>
-                          {row.success ? "Success" : "Failed"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate">
-                        {row.reason || "—"}
-                      </TableCell>
-                      <TableCell className="text-xs text-right text-muted-foreground whitespace-nowrap">
-                        {row.createdAt ? format(new Date(row.createdAt), "MMM d, HH:mm") : "—"}
+            <Skeleton
+              id="admin-login-attempts"
+              loading={loadingAttempts}
+              label="Loading login attempts"
+              empty={!loadingAttempts && loginAttempts.length === 0}
+              emptyMessage={
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox checked={false} disabled aria-label="Select all login events" />
+                      </TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Event</TableHead>
+                      <TableHead>Result</TableHead>
+                      <TableHead>Details</TableHead>
+                      <TableHead className="text-right">Time</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-xs text-muted-foreground">
+                        No login events recorded yet.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  </TableBody>
+                </Table>
+              }
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={attemptBulk.headerCheckState(visibleAttemptIds)}
+                        onCheckedChange={(checked) =>
+                          attemptBulk.toggleAll(visibleAttemptIds, !!checked)
+                        }
+                        aria-label="Select all login events"
+                      />
+                    </TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Event</TableHead>
+                    <TableHead>Result</TableHead>
+                    <TableHead>Details</TableHead>
+                    <TableHead className="text-right">Time</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loadingAttempts ? (
+                    <SampleTableRows
+                      columns={["checkbox", "text", "text", "badge", "text", "date"]}
+                      rowCount={5}
+                    />
+                  ) : (
+                    loginAttempts.map((row) => (
+                      <TableRow key={row._id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={attemptBulk.isSelected(row._id)}
+                            onCheckedChange={(checked) =>
+                              attemptBulk.toggleOne(row._id, !!checked)
+                            }
+                            aria-label={`Select login event ${row.email}`}
+                          />
+                        </TableCell>
+                        <TableCell className="text-xs font-mono">{row.email}</TableCell>
+                        <TableCell className="text-xs capitalize">{row.action}</TableCell>
+                        <TableCell className="text-xs">
+                          <Badge variant={row.success ? "secondary" : "destructive"}>
+                            {row.success ? "Success" : "Failed"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate">
+                          {row.reason || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs text-right text-muted-foreground whitespace-nowrap">
+                          {row.createdAt ? format(new Date(row.createdAt), "MMM d, HH:mm") : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </Skeleton>
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => refetchAttempts()} className="gap-1.5">

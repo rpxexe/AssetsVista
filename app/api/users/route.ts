@@ -6,6 +6,7 @@ import { getAuthenticatedActor } from "@/lib/serverAuth";
 import { invalidateElasticIndexCache } from "@/lib/elasticSearch";
 import { ensureCleanUserIndexes, isLegacyUserIndexError } from "@/lib/userIndexes";
 import { ActionLogModel } from "@/models/ActionLog.model";
+import { ApiKeyModel } from "@/models/ApiKey.model";
 import { PeopleModel } from "@/models/Peoples.model";
 import UserModel from "@/models/Users.model";
 import mongoose from "mongoose";
@@ -371,6 +372,13 @@ export async function PATCH(req: NextRequest) {
       .populate("personId", "name username email employee_num department location")
       .lean();
 
+    if (isActive === false) {
+      await ApiKeyModel.updateMany(
+        { userId: targetUser._id, workspaceId: actor.workspaceId, revokedAt: null },
+        { $set: { revokedAt: new Date() } }
+      ).catch(() => null);
+    }
+
     if (auditNotes.length > 0 && updated) {
       await ActionLogModel.create({
         userId: actor.workspaceId,
@@ -454,6 +462,10 @@ export async function DELETE(req: NextRequest) {
     }
 
     await UserModel.findByIdAndDelete(id);
+    await ApiKeyModel.updateMany(
+      { userId: target._id, workspaceId: actor.workspaceId, revokedAt: null },
+      { $set: { revokedAt: new Date() } }
+    ).catch(() => null);
 
     await ActionLogModel.create({
       userId: actor.workspaceId,

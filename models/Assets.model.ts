@@ -29,6 +29,8 @@ export interface Asset extends Document {
   notes?: string;
   image?: string;
   qr_code?: string;
+  deletedAt?: Date | null;
+  deletedBy?: string | null;
 }
 
 const AssetSchema: Schema<Asset> = new Schema(
@@ -145,6 +147,16 @@ const AssetSchema: Schema<Asset> = new Schema(
     qr_code: {
       type: String,
     },
+    deletedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    deletedBy: {
+      type: String,
+      default: null,
+      trim: true,
+    },
   },
   {
     timestamps: true,
@@ -167,5 +179,27 @@ AssetSchema.index({ next_audit_date: 1 });
 AssetSchema.index({ last_audit_date: 1 });
 AssetSchema.index({ expected_checkin_date: 1 });
 AssetSchema.index({ asset_name: 1 });
+AssetSchema.index({ userId: 1, deletedAt: 1, createdAt: -1 });
+
+// Automatically exclude soft-deleted assets unless query explicitly specifies deletedAt or includeDeleted
+AssetSchema.pre(
+  ["find", "findOne", "findOneAndUpdate", "countDocuments", "distinct"],
+  function () {
+    const filter = this.getFilter();
+    const opts = this.getOptions() as { includeDeleted?: boolean } | undefined;
+    if (filter && filter.deletedAt === undefined && !opts?.includeDeleted) {
+      this.where({ deletedAt: null });
+    }
+  }
+);
+
+AssetSchema.pre("aggregate", function () {
+  const pipeline = this.pipeline();
+  const first = pipeline[0] as Record<string, any> | undefined;
+  if (first && first.$match && first.$match.deletedAt !== undefined) {
+    return;
+  }
+  pipeline.unshift({ $match: { deletedAt: null } });
+});
 
 export const AssetModel: Model<Asset> = defineModel<Asset>("Asset", AssetSchema);

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Loader2 } from "lucide-react";
+import { SelectOptionsSkullet } from "@/components/skeletons/AppSkeletons";
 import {
   Select,
   SelectContent,
@@ -36,21 +36,19 @@ export function DepartmentBox({ value, onChange }: DepartmentBoxProps) {
       <SelectContent>
         <ScrollArea className="h-48 w-full">
           <SelectGroup>
-            {isLoading ? (
-              <div className="w-full h-full flex items-center justify-center">
-                <Loader2 className="animate-spin" />
-              </div>
-            ) : isError ? (
-              <div className="w-full flex items-center justify-center">
-                <p className="text-muted-foreground text-red-600">Failed to fetch data</p>
-              </div>
-            ) : (
-              departments.map((department) => (
+            <SelectOptionsSkullet
+              id="select-departments"
+              isLoading={isLoading}
+              isError={isError}
+              isEmpty={!isLoading && !isError && departments.length === 0}
+              emptyText="No departments found"
+            >
+              {departments.map((department) => (
                 <SelectItem key={department.name} value={department.name}>
                   {department.name}
                 </SelectItem>
-              ))
-            )}
+              ))}
+            </SelectOptionsSkullet>
           </SelectGroup>
         </ScrollArea>
       </SelectContent>

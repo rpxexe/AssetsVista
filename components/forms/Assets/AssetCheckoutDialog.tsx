@@ -58,12 +58,14 @@ interface AssetCheckoutDialogProps {
   assetId: string;
   assetTag: string;
   assetName: string;
+  trigger?: React.ReactNode;
 }
 
 export function AssetCheckoutDialog({
   assetId,
   assetTag,
   assetName,
+  trigger,
 }: AssetCheckoutDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -102,6 +104,7 @@ export function AssetCheckoutDialog({
 
       const keysToInvalidate = [
         ["assets"],
+        ["asset", assetId],
         ["counttotals"],
         ["needs-attention"],
         ["acceptances"],
@@ -109,6 +112,7 @@ export function AssetCheckoutDialog({
         ["calendar-events"],
         ["dashboard-summary"],
         ["status"],
+        ["asset-sidebar-counts"],
       ];
       keysToInvalidate.forEach((key) =>
         queryClient.invalidateQueries({ queryKey: key })
@@ -131,14 +135,16 @@ export function AssetCheckoutDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          size="sm"
-          variant="outline"
-          className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 flex items-center gap-1 h-8"
-        >
-          <LogOut className="h-3.5 w-3.5" />
-          Check Out
-        </Button>
+        {trigger || (
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 flex items-center gap-1 h-8"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Check Out
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>

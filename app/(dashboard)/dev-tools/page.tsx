@@ -31,6 +31,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
 import { getClientErrorMessage } from "@/lib/errorMessages";
 import type { DemoSeedSummary } from "@/lib/demoData";
+import { DevToolsSkeleton } from "@/components/skeletons/AppSkeletons";
 
 type PendingConfirm = null | "reset_inventory" | "reset_all_dev" | "reset_and_seed";
 
@@ -44,11 +45,7 @@ export default function DevToolsPage() {
   const [lastSeedSummary, setLastSeedSummary] = useState<DemoSeedSummary | null>(null);
 
   if (isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <DevToolsSkeleton />;
   }
 
   if (!canAccessDevTools) {
@@ -168,11 +165,6 @@ export default function DevToolsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/settings">
-            <Button variant="outline" size="sm" className="rounded-full text-xs">
-              Settings
-            </Button>
-          </Link>
           <Link href="/admin">
             <Button variant="outline" size="sm" className="gap-1.5 rounded-full text-xs">
               <ArrowLeft className="h-3.5 w-3.5" />

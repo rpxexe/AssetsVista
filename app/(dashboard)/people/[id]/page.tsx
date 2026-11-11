@@ -10,17 +10,18 @@ import {
   Building2,
   Calendar,
   DollarSign,
+  DoorOpen,
   FileText,
   History,
   KeyRound,
   Laptop,
-  Loader2,
   Mail,
   MapPin,
   Phone,
   RotateCcw,
   User,
 } from "lucide-react";
+import { PersonDetailSkeleton } from "@/components/skeletons/AppSkeletons";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +41,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import PeopleEditForm from "@/components/forms/People/PeopleEditForm";
+import { OffboardPersonDialog } from "@/components/people/OffboardPersonDialog";
 import SignOffSheetModal from "@/components/people/SignOffSheetModal";
 import AssetCheckinDialog from "@/components/forms/Assets/AssetCheckinDialog";
 import { ImageThumbnail } from "@/components/ImageThumbnail";
@@ -70,13 +72,10 @@ export default function PersonDetailPage({ params }: PageProps) {
   });
 
   const [activeTab, setActiveTab] = React.useState<"assets" | "licenses" | "history">("assets");
+  const [offboardOpen, setOffboardOpen] = React.useState(false);
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-[70vh]">
-        <Loader2 className="animate-spin h-10 w-10 text-muted-foreground" />
-      </div>
-    );
+    return <PersonDetailSkeleton />;
   }
 
   if (error || !person) {
@@ -185,8 +184,24 @@ export default function PersonDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <SignOffSheetModal person={person} />
+          {permissions.canManagePeople &&
+            (assignedAssets.length > 0 ||
+              assignedLicenses.length > 0 ||
+              Boolean(person.user_id && person.isActive !== false) ||
+              (person.active_api_keys_count ?? 0) > 0 ||
+              Boolean(person.end_date)) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-amber-600 dark:text-amber-300 border-amber-500/40"
+                onClick={() => setOffboardOpen(true)}
+              >
+                <DoorOpen className="h-4 w-4" />
+                Offboard
+              </Button>
+            )}
           {permissions.canManagePeople && <PeopleEditForm id={id} />}
         </div>
       </div>
@@ -442,9 +457,18 @@ export default function PersonDetailPage({ params }: PageProps) {
                       />
                     </TableCell>
                     <TableCell className="font-mono font-semibold uppercase">
-                      {asset.asset_tag}
+                      <Link
+                        href={`/assets/view/${asset._id}`}
+                        className="hover:underline text-blue-600 dark:text-blue-400"
+                      >
+                        {asset.asset_tag}
+                      </Link>
                     </TableCell>
-                    <TableCell className="font-medium">{asset.asset_name}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link href={`/assets/view/${asset._id}`} className="hover:underline">
+                        {asset.asset_name}
+                      </Link>
+                    </TableCell>
                     <TableCell>{asset.asset_model?.name || "-"}</TableCell>
                     <TableCell className="font-mono">{asset.serial_number || "-"}</TableCell>
                     <TableCell>
@@ -614,6 +638,13 @@ export default function PersonDetailPage({ params }: PageProps) {
           </Table>
         </div>
       )}
+
+      <OffboardPersonDialog
+        person={person}
+        open={offboardOpen}
+        onOpenChange={setOffboardOpen}
+        onCompleted={() => refetch()}
+      />
     </div>
   );
 }

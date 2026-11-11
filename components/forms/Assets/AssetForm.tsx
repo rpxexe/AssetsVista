@@ -169,6 +169,7 @@ const AssetForm = () => {
       queryClient.invalidateQueries({ queryKey: ["assets"] });
       queryClient.invalidateQueries({ queryKey: ["counttotals"] });
       queryClient.invalidateQueries({ queryKey: ["status"] });
+      queryClient.invalidateQueries({ queryKey: ["asset-sidebar-counts"] });
       form.reset();
       setOpen(false);
     } catch (error) {

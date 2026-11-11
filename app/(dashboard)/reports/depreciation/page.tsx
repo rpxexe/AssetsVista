@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { format } from "date-fns";
@@ -8,11 +9,12 @@ import {
   Coins,
   DollarSign,
   FileSpreadsheet,
-  Loader2,
   RefreshCw,
   Search,
   TrendingDown,
 } from "lucide-react";
+import { Skeleton } from "skullet/react";
+import { SampleTableRows } from "@/components/skeletons/AppSkeletons";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -140,49 +142,66 @@ export default function DepreciationReportPage() {
       </div>
 
       {/* Financial Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="border rounded-2xl p-4 bg-card">
-          <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Total Evaluated Assets</span>
-            <FileSpreadsheet className="h-4 w-4" />
+      <Skeleton id="depreciation-kpis" loading={isLoading} label="Loading valuation summary">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="border rounded-2xl p-4 bg-card">
+            <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
+              <span>Total Evaluated Assets</span>
+              <FileSpreadsheet className="h-4 w-4" />
+            </div>
+            <p className="text-3xl font-bold mt-2">{isLoading ? 42 : summary.total_assets}</p>
+            <p className="text-xs text-muted-foreground mt-1">hardware assets tracked</p>
           </div>
-          <p className="text-3xl font-bold mt-2">{summary.total_assets}</p>
-          <p className="text-xs text-muted-foreground mt-1">hardware assets tracked</p>
-        </div>
 
-        <div className="border rounded-2xl p-4 bg-card">
-          <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Total Original Spend</span>
-            <DollarSign className="h-4 w-4 text-blue-600" />
+          <div className="border rounded-2xl p-4 bg-card">
+            <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
+              <span>Total Original Spend</span>
+              <DollarSign className="h-4 w-4 text-blue-600" />
+            </div>
+            <p className="text-3xl font-bold mt-2">
+              $
+              {isLoading
+                ? "64,800.00"
+                : summary.total_purchase_cost.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                  })}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">historical capital expenditure</p>
           </div>
-          <p className="text-3xl font-bold mt-2">
-            ${summary.total_purchase_cost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">historical capital expenditure</p>
-        </div>
 
-        <div className="border rounded-2xl p-4 bg-card">
-          <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Current Book Value</span>
-            <DollarSign className="h-4 w-4 text-green-600" />
+          <div className="border rounded-2xl p-4 bg-card">
+            <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
+              <span>Current Book Value</span>
+              <DollarSign className="h-4 w-4 text-green-600" />
+            </div>
+            <p className="text-3xl font-bold mt-2 text-green-600 dark:text-green-400">
+              $
+              {isLoading
+                ? "41,250.00"
+                : summary.total_current_value.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                  })}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">remaining asset valuation</p>
           </div>
-          <p className="text-3xl font-bold mt-2 text-green-600 dark:text-green-400">
-            ${summary.total_current_value.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">remaining asset valuation</p>
-        </div>
 
-        <div className="border rounded-2xl p-4 bg-card">
-          <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Depreciated to Date</span>
-            <TrendingDown className="h-4 w-4 text-amber-600" />
+          <div className="border rounded-2xl p-4 bg-card">
+            <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
+              <span>Depreciated to Date</span>
+              <TrendingDown className="h-4 w-4 text-amber-600" />
+            </div>
+            <p className="text-3xl font-bold mt-2 text-amber-600 dark:text-amber-400">
+              $
+              {isLoading
+                ? "23,550.00"
+                : summary.total_depreciated.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                  })}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">accumulated asset write-off</p>
           </div>
-          <p className="text-3xl font-bold mt-2 text-amber-600 dark:text-amber-400">
-            ${summary.total_depreciated.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">accumulated asset write-off</p>
         </div>
-      </div>
+      </Skeleton>
 
       {/* Filter / Search Bar */}
       <div className="flex items-center justify-between gap-4">
@@ -214,13 +233,47 @@ export default function DepreciationReportPage() {
       />
 
       {/* Table */}
-      {isLoading ? (
-        <div className="flex justify-center items-center py-16">
-          <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
-        </div>
-      ) : error ? (
-        <p className="text-center text-red-500 py-8">Failed to calculate depreciation.</p>
-      ) : (
+      <Skeleton
+        id="depreciation-report-table"
+        loading={isLoading}
+        label="Loading depreciation report"
+        empty={!isLoading && !error && filteredItems.length === 0}
+        emptyMessage={
+          <div className="rounded-2xl border overflow-x-auto bg-card">
+            <Table className="min-w-max w-full">
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox checked={false} disabled aria-label="Select all assets" />
+                  </TableHead>
+                  <TableHead>Asset Tag</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Model</TableHead>
+                  <TableHead>Purchase Date</TableHead>
+                  <TableHead>Purchase Cost</TableHead>
+                  <TableHead>Useful Life</TableHead>
+                  <TableHead>Age</TableHead>
+                  <TableHead>Depreciation/Mo</TableHead>
+                  <TableHead>Current Value</TableHead>
+                  <TableHead>Depreciated %</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell colSpan={11} className="h-24 text-center text-muted-foreground">
+                    No assets found.
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        }
+        error={
+          !isLoading && error ? (
+            <p className="text-center text-red-500 py-8">Failed to calculate depreciation.</p>
+          ) : undefined
+        }
+      >
         <div className="rounded-2xl border overflow-x-auto bg-card">
           <Table className="min-w-max w-full">
             <TableHeader className="bg-muted/50">
@@ -245,12 +298,23 @@ export default function DepreciationReportPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredItems.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={11} className="h-24 text-center text-muted-foreground">
-                    No assets found.
-                  </TableCell>
-                </TableRow>
+              {isLoading ? (
+                <SampleTableRows
+                  columns={[
+                    "checkbox",
+                    "mono",
+                    "text",
+                    "text",
+                    "date",
+                    "number",
+                    "text",
+                    "text",
+                    "number",
+                    "number",
+                    "progress",
+                  ]}
+                  rowCount={6}
+                />
               ) : (
                 filteredItems.map((item: any) => (
                   <TableRow key={item._id}>
@@ -262,9 +326,15 @@ export default function DepreciationReportPage() {
                       />
                     </TableCell>
                     <TableCell className="font-mono font-semibold uppercase">
-                      {item.asset_tag}
+                      <Link href={`/assets/view/${item._id}`} className="hover:underline text-blue-600 dark:text-blue-400">
+                        {item.asset_tag}
+                      </Link>
                     </TableCell>
-                    <TableCell className="font-medium">{item.asset_name}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link href={`/assets/view/${item._id}`} className="hover:underline">
+                        {item.asset_name}
+                      </Link>
+                    </TableCell>
                     <TableCell>{item.asset_model}</TableCell>
                     <TableCell className="text-xs">
                       {item.purchase_date
@@ -301,7 +371,7 @@ export default function DepreciationReportPage() {
             </TableBody>
           </Table>
         </div>
-      )}
+      </Skeleton>
     </div>
   );
 }

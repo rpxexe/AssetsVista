@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
 import axios from "axios";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -9,7 +8,6 @@ import {
   EyeOff,
   KeyRound,
   Loader2,
-  Settings,
   ShieldCheck,
   User,
 } from "lucide-react";
@@ -41,7 +39,7 @@ export function AccountSettingsDialog({
   open,
   onOpenChange,
 }: AccountSettingsDialogProps) {
-  const { dbUser, role, permissions } = usePermissions();
+  const { dbUser, role } = usePermissions();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -227,19 +225,10 @@ export function AccountSettingsDialog({
           </div>
 
           <DialogFooter className="flex flex-wrap items-center justify-between gap-2 pt-2">
-            {permissions.canManageSettings ? (
-              <Link href="/settings" onClick={() => onOpenChange(false)}>
-                <Button type="button" variant="outline" size="sm" className="gap-1.5">
-                  <Settings className="h-3.5 w-3.5" />
-                  Admin Settings Hub
-                </Button>
-              </Link>
-            ) : (
-              <div className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                <span>Role: {ROLE_METADATA[role].label}</span>
-              </div>
-            )}
+            <div className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span>Role: {ROLE_METADATA[role].label}</span>
+            </div>
 
             <div className="flex items-center gap-2">
               <Button

@@ -5,17 +5,27 @@ import {
   ColumnFiltersState,
   SortingState,
   VisibilityState,
-  flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ChevronDown, Eye, Loader2, Trash } from "lucide-react";
+import {
+  ChevronDown,
+  Crown,
+  DoorOpen,
+  Eye,
+  KeyRound,
+  Loader2,
+  Trash,
+  UserCheck,
+  UserMinus,
+} from "lucide-react";
 import * as React from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { DataTableSkullet } from "@/components/skeletons/AppSkeletons";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -26,18 +36,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import PeopleEditForm from "../forms/People/PeopleEditForm";
+import {
+  OffboardPersonDialog,
+  OffboardTargetPerson,
+} from "@/components/people/OffboardPersonDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -87,40 +93,73 @@ export type Person = {
     name: string;
   };
   assets_count?: number;
+  total_asset_value?: number;
   licenses_count?: number;
+  active_api_keys_count?: number;
   user_id?: string | null;
   role?: UserRole | null;
   isActive?: boolean | null;
   lastLogin?: string | null;
+  end_date?: string | null;
+  is_account_only?: boolean;
+  is_overdue?: boolean;
+  days_remaining?: number | null;
+  needs_clearance?: boolean;
+  offboarding_risk?: "cleared" | "warning" | "critical";
   notes?: string;
   image?: string;
 };
 
+interface PeopleSidebarSummary {
+  total: number;
+  superusers: number;
+  admins: number;
+  deleted: number;
+  loginEnabled: number;
+  loginDisabled: number;
+  offboardingSoon: number;
+  offboardingAtRisk: number;
+}
+
+const FILTER_CHIPS: Array<{
+  id: string;
+  label: string;
+  href: string;
+  countKey?: keyof PeopleSidebarSummary;
+}> = [
+  { id: "all", label: "All People", href: "/people", countKey: "total" },
+  { id: "superusers", label: "Superusers", href: "/people?filter=superusers", countKey: "superusers" },
+  { id: "admins", label: "Admin Users", href: "/people?filter=admins", countKey: "admins" },
+  { id: "login_enabled", label: "Login Enabled", href: "/people?filter=login_enabled", countKey: "loginEnabled" },
+  { id: "login_disabled", label: "Login Disabled", href: "/people?filter=login_disabled", countKey: "loginDisabled" },
+];
+
 export function PeopleTable() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { permissions } = usePermissions();
+  const { permissions, dbUser } = usePermissions();
   const searchParams = useSearchParams();
+  const activeFilter = searchParams ? searchParams.get("filter") || "all" : "all";
   const endDateWithin = searchParams ? searchParams.get("end_date_within") : null;
   const withAssignments = searchParams ? searchParams.get("with_assignments") : null;
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  );
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  const [togglingUserId, setTogglingUserId] = React.useState<string | null>(null);
+  const [offboardTarget, setOffboardTarget] = React.useState<OffboardTargetPerson | null>(null);
 
   const {
     data = [],
     isLoading,
     error,
     refetch,
-  } = useQuery({
-    queryKey: ["people", endDateWithin, withAssignments],
+  } = useQuery<Person[]>({
+    queryKey: ["people", activeFilter, endDateWithin, withAssignments],
     queryFn: async () => {
       const params = new URLSearchParams();
+      if (activeFilter && activeFilter !== "all") params.set("filter", activeFilter);
       if (endDateWithin) params.set("end_date_within", endDateWithin);
       if (withAssignments) params.set("with_assignments", withAssignments);
       const qs = params.toString();
@@ -129,16 +168,35 @@ export function PeopleTable() {
     },
   });
 
+  const { data: sidebarSummary } = useQuery<PeopleSidebarSummary>({
+    queryKey: ["people-sidebar-counts"],
+    queryFn: async () => {
+      const res = await axios.get("/api/core/people/sidebar-counts");
+      return res.data.data;
+    },
+    staleTime: 1000 * 30,
+  });
+
+  const invalidatePeopleCaches = async () => {
+    await Promise.all([
+      refetch(),
+      queryClient.invalidateQueries({ queryKey: ["people-sidebar-counts"] }),
+      queryClient.invalidateQueries({ queryKey: ["deleted-people"] }),
+      queryClient.invalidateQueries({ queryKey: ["people-offboarding"] }),
+      queryClient.invalidateQueries({ queryKey: ["counttotals"] }),
+      queryClient.invalidateQueries({ queryKey: ["users"] }),
+    ]);
+  };
+
   const handleDelete = async (id: string) => {
     try {
       const response = await axios.delete(`/api/core/people?id=${id}`);
       toast({
-        title: response.data.message || "Person Deleted",
-        description: "Person deleted successfully",
-        variant: "destructive",
+        title: "Moved to Deleted Users",
+        description:
+          response.data.message || "Person moved to Deleted Users Trash (login & tokens suspended).",
       });
-      refetch();
-      queryClient.invalidateQueries({ queryKey: ["counttotals"] });
+      await invalidatePeopleCaches();
     } catch (error: any) {
       console.error("Error deleting person:", error);
       toast({
@@ -146,6 +204,33 @@ export function PeopleTable() {
         description: error.response?.data?.message || "Failed to delete person",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleToggleLogin = async (person: Person) => {
+    if (!person.user_id) return;
+    const nextState = person.isActive === false;
+    setTogglingUserId(person.user_id);
+    try {
+      await axios.patch("/api/users", {
+        id: person.user_id,
+        isActive: nextState,
+      });
+      toast({
+        title: nextState ? "Login Enabled" : "Login Disabled",
+        description: nextState
+          ? `${person.name || person.email} can now sign in to AssetsVista.`
+          : `Portal sign-in suspended & active API tokens revoked for ${person.name || person.email}.`,
+      });
+      await invalidatePeopleCaches();
+    } catch (err) {
+      toast({
+        title: "Update Failed",
+        description: getClientErrorMessage(err, "Unable to change login status."),
+        variant: "destructive",
+      });
+    } finally {
+      setTogglingUserId(null);
     }
   };
 
@@ -164,8 +249,15 @@ export function PeopleTable() {
       { id: "location.name", header: "Location", accessor: (p) => p.location?.name || "-" },
       { header: "Company", accessor: (p) => p.company?.name || "-" },
       { id: "assets_count", header: "Assigned Assets", accessor: (p) => p.assets_count ?? 0 },
+      { header: "Asset Value ($)", accessor: (p) => p.total_asset_value ?? 0 },
       { header: "Assigned Licenses", accessor: (p) => p.licenses_count ?? 0 },
       { id: "role", header: "Role / Access", accessor: (p) => p.role || "Directory Only" },
+      {
+        header: "Login Status",
+        accessor: (p) =>
+          p.user_id ? (p.isActive !== false ? "Login Enabled" : "Login Disabled") : "No Login",
+      },
+      { header: "Active API Keys", accessor: (p) => p.active_api_keys_count ?? 0 },
     ],
     []
   );
@@ -186,6 +278,7 @@ export function PeopleTable() {
       cell: ({ row }) => (
         <Checkbox
           checked={row.getIsSelected()}
+          disabled={row.original.is_account_only}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label="Select row"
         />
@@ -202,6 +295,7 @@ export function PeopleTable() {
           row.original.name ||
           `${row.original.first_name || ""} ${row.original.last_name || ""}`.trim() ||
           "User";
+        const isAccountOnly = Boolean(row.original.is_account_only);
 
         return (
           <div className="flex items-center gap-2.5">
@@ -212,12 +306,26 @@ export function PeopleTable() {
               size="sm"
               rounded="full"
             />
-            <Link
-              href={`/people/${id}`}
-              className="font-semibold text-primary hover:underline flex items-center gap-1.5"
-            >
-              {displayName}
-            </Link>
+            <div>
+              <Link
+                href={isAccountOnly ? "/people?tab=roles" : `/people/${id}`}
+                className="font-semibold text-primary hover:underline flex items-center gap-1.5"
+              >
+                {displayName}
+              </Link>
+              <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                {isAccountOnly && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                    Account Only
+                  </Badge>
+                )}
+                {row.original.is_overdue && row.original.needs_clearance && (
+                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                    Offboarding Overdue
+                  </Badge>
+                )}
+              </div>
+            </div>
           </div>
         );
       },
@@ -244,19 +352,29 @@ export function PeopleTable() {
       header: "Assigned Assets",
       cell: ({ row }) => {
         const count = row.original.assets_count ?? 0;
+        const totalValue = Number(row.original.total_asset_value ?? 0);
         return (
-          <Link href={`/people/${row.original._id}`}>
-            <Badge
-              variant={count > 0 ? "secondary" : "outline"}
-              className={
-                count > 0
-                  ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 cursor-pointer"
-                  : "text-muted-foreground"
-              }
+          <div className="flex items-center gap-1.5">
+            <Link
+              href={row.original.is_account_only ? "/people?tab=roles" : `/people/${row.original._id}`}
             >
-              {count} {count === 1 ? "Asset" : "Assets"}
-            </Badge>
-          </Link>
+              <Badge
+                variant={count > 0 ? "secondary" : "outline"}
+                className={
+                  count > 0
+                    ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 cursor-pointer"
+                    : "text-muted-foreground"
+                }
+              >
+                {count} {count === 1 ? "Asset" : "Assets"}
+              </Badge>
+            </Link>
+            {totalValue > 0 && (
+              <span className="text-[11px] font-mono text-muted-foreground">
+                ${totalValue.toLocaleString()}
+              </span>
+            )}
+          </div>
         );
       },
     },
@@ -272,26 +390,44 @@ export function PeopleTable() {
     },
     {
       accessorKey: "role",
-      header: "Role / Access",
+      header: "Role & Login",
       cell: ({ row }) => {
         const r = row.original.role;
         const active = row.original.isActive;
+        const apiKeys = row.original.active_api_keys_count ?? 0;
+
         if (!r) {
           return (
             <Badge variant="outline" className="text-muted-foreground font-normal">
-              Directory Only
+              No Login (Directory)
             </Badge>
           );
         }
-        const meta = ROLE_METADATA[normalizeUserRole(r)];
+
+        const normalized = normalizeUserRole(r);
+        const meta = ROLE_METADATA[normalized];
         return (
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <Badge variant="outline" className={meta.badgeClass}>
+              {normalized === "admin" && <Crown className="h-3 w-3 mr-1 text-amber-500" />}
               {meta.label}
             </Badge>
-            {active === false && (
+            {active === false ? (
               <Badge variant="destructive" className="text-[10px]">
-                Suspended
+                Login Disabled
+              </Badge>
+            ) : (
+              <Badge
+                variant="outline"
+                className="text-[10px] text-emerald-700 dark:text-emerald-300 border-emerald-500/30 bg-emerald-500/10"
+              >
+                Login Enabled
+              </Badge>
+            )}
+            {apiKeys > 0 && (
+              <Badge variant="outline" className="text-[10px] gap-1 font-mono">
+                <KeyRound className="h-2.5 w-2.5" />
+                {apiKeys}
               </Badge>
             )}
           </div>
@@ -302,34 +438,77 @@ export function PeopleTable() {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => {
-        const id = row.original._id;
+        const p = row.original;
+        const id = p._id;
+        const isAccountOnly = Boolean(p.is_account_only);
+        const canToggleLogin =
+          permissions.canManageRoles && Boolean(p.user_id) && p.user_id !== dbUser?._id;
+        const isBusy = Boolean(p.user_id && togglingUserId === p.user_id);
+        const showOffboard =
+          permissions.canManagePeople &&
+          !isAccountOnly &&
+          (Boolean(p.end_date) || (p.assets_count ?? 0) > 0 || (p.licenses_count ?? 0) > 0);
 
         return (
           <div className="flex items-center gap-1.5">
-            <Link href={`/people/${id}`}>
+            <Link href={isAccountOnly ? "/people?tab=roles" : `/people/${id}`}>
               <Button size="icon" variant="outline" className="h-8 w-8" title="View Profile">
                 <Eye className="h-4 w-4" />
               </Button>
             </Link>
-            {permissions.canManagePeople && <PeopleEditForm id={id} />}
-            {permissions.canManagePeople && (
+
+            {canToggleLogin && (
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-8 w-8"
+                disabled={isBusy}
+                title={p.isActive === false ? "Enable Login Access" : "Disable Login & Revoke API Keys"}
+                onClick={() => handleToggleLogin(p)}
+              >
+                {isBusy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : p.isActive === false ? (
+                  <UserCheck className="h-4 w-4 text-emerald-500" />
+                ) : (
+                  <UserMinus className="h-4 w-4 text-amber-500" />
+                )}
+              </Button>
+            )}
+
+            {showOffboard && (
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-8 w-8 text-amber-600 dark:text-amber-400"
+                title="Complete Offboarding Clearance"
+                onClick={() => setOffboardTarget(p)}
+              >
+                <DoorOpen className="h-4 w-4" />
+              </Button>
+            )}
+
+            {permissions.canManagePeople && !isAccountOnly && <PeopleEditForm id={id} />}
+
+            {permissions.canManagePeople && !isAccountOnly && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
                     size="icon"
                     variant="outline"
                     className="h-8 w-8 border text-red-500 hover:text-red-700"
-                    title="Delete Person"
+                    title="Move to Deleted Users Trash"
                   >
                     <Trash className="h-4 w-4" />
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogTitle>Move to Deleted Users Trash?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will permanently delete this person. If this person has assigned assets,
-                      you must check them in first.
+                      This safely moves the person record into Deleted Users Trash, suspends their
+                      login access, and revokes any active API tokens. You can restore or purge
+                      them later.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -338,7 +517,7 @@ export function PeopleTable() {
                       className="bg-red-500 hover:bg-red-600 text-white"
                       onClick={() => handleDelete(id)}
                     >
-                      Delete
+                      Move to Trash
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -372,8 +551,65 @@ export function PeopleTable() {
   const pageSizeOptions = [5, 10, 20, 50];
 
   return (
-    <div className="w-full">
-      <div className="flex flex-wrap items-center justify-between py-4 gap-2">
+    <div className="w-full space-y-2">
+      {/* Quick Snipe-IT Sidebar Filter Strip */}
+      <div className="flex flex-wrap items-center gap-1.5 pt-2">
+        {FILTER_CHIPS.map((chip) => {
+          const isCurrent = activeFilter === chip.id && !endDateWithin;
+          const count = chip.countKey && sidebarSummary ? sidebarSummary[chip.countKey] : undefined;
+          return (
+            <Link
+              key={chip.id}
+              href={chip.href}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                isCurrent
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  : "bg-card hover:bg-muted text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span>{chip.label}</span>
+              {count !== undefined && (
+                <span
+                  className={`rounded-full px-1.5 py-0 text-[10px] font-mono ${
+                    isCurrent ? "bg-primary-foreground/20" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {count}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+
+        <Link
+          href="/people/offboarding"
+          className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium bg-card hover:bg-muted text-amber-700 dark:text-amber-300 border-amber-500/30"
+        >
+          <DoorOpen className="h-3.5 w-3.5" />
+          <span>Offboarding Soon</span>
+          {sidebarSummary && (
+            <span className="rounded-full px-1.5 py-0 text-[10px] font-mono bg-amber-500/15">
+              {sidebarSummary.offboardingSoon}
+            </span>
+          )}
+        </Link>
+
+        {permissions.canManagePeople && (
+          <Link
+            href="/people/deleted"
+            className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium bg-card hover:bg-muted text-muted-foreground hover:text-foreground"
+          >
+            <span>Deleted Users</span>
+            {sidebarSummary && (
+              <span className="rounded-full px-1.5 py-0 text-[10px] font-mono bg-muted">
+                {sidebarSummary.deleted}
+              </span>
+            )}
+          </Link>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between py-3 gap-2">
         <div className="flex flex-wrap items-center gap-2 flex-1">
           <Input
             placeholder="Filter by name..."
@@ -383,11 +619,12 @@ export function PeopleTable() {
             }
             className="max-w-sm"
           />
-          {(endDateWithin || withAssignments) && (
+          {(endDateWithin || withAssignments || activeFilter !== "all") && (
             <div className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-2.5 py-1 text-xs">
               <span className="font-medium text-foreground">
-                Offboarding soon
-                {endDateWithin ? ` (${endDateWithin}d)` : ""}
+                {activeFilter !== "all"
+                  ? activeFilter.replace("_", " ")
+                  : `Offboarding soon${endDateWithin ? ` (${endDateWithin}d)` : ""}`}
                 {withAssignments ? " • with assets" : ""}
               </span>
               <Link
@@ -441,7 +678,11 @@ export function PeopleTable() {
       </div>
 
       {(() => {
-        const selectedPeople = table.getFilteredSelectedRowModel().rows.map((r) => r.original);
+        const selectedPeople = table
+          .getFilteredSelectedRowModel()
+          .rows.map((r) => r.original)
+          .filter((p) => !p.is_account_only);
+
         return (
           <BulkActionBar
             selectedCount={selectedPeople.length}
@@ -458,12 +699,12 @@ export function PeopleTable() {
                 ? [
                     {
                       id: "bulk-delete-people",
-                      label: "Delete Selected",
+                      label: "Move to Trash",
                       icon: <Trash size={14} />,
                       variant: "destructive",
-                      confirmTitle: `Delete ${selectedPeople.length} selected person record(s)?`,
+                      confirmTitle: `Move ${selectedPeople.length} selected person record(s) to Deleted Users Trash?`,
                       confirmDescription:
-                        "People who currently hold assigned assets will be automatically skipped for safety.",
+                        "People with assigned assets are safely skipped. Linked logins & API keys will be suspended.",
                       onExecute: async () => {
                         try {
                           const res = await executeBulkAction({
@@ -471,15 +712,12 @@ export function PeopleTable() {
                             action: "delete",
                             ids: selectedPeople.map((p) => p._id),
                           });
-                          toast({ title: "Bulk Action Complete", description: res.message });
+                          toast({ title: "Moved to Trash", description: res.message });
                           setRowSelection({});
-                          await Promise.all([
-                            refetch(),
-                            queryClient.invalidateQueries({ queryKey: ["counttotals"] }),
-                          ]);
+                          await invalidatePeopleCaches();
                         } catch (err) {
                           toast({
-                            title: "Bulk Delete Failed",
+                            title: "Bulk Action Failed",
                             description: getClientErrorMessage(
                               err,
                               "Unable to delete selected people."
@@ -496,66 +734,17 @@ export function PeopleTable() {
         );
       })()}
 
-      {isLoading ? (
-        <div className="w-full h-full flex items-center justify-center py-12">
-          <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
-        </div>
-      ) : error ? (
-        <p className="text-center text-red-500 py-8">
-          Error while fetching people data
-        </p>
-      ) : (
-        <div className="rounded-md border overflow-x-auto">
-          <Table className="min-w-max w-full">
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => {
-                    return (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                      </TableHead>
-                    );
-                  })}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center"
-                  >
-                    No people found. Click &quot;Add Person&quot; above to create one.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <DataTableSkullet
+        id="peoples-table"
+        isLoading={isLoading}
+        isError={Boolean(error)}
+        errorMessage="Error while fetching people data"
+        label="Loading people directory"
+        table={table}
+        colSpan={columns.length}
+        emptyText='No people match this view. Try another filter or click "Add Person" above.'
+        columnOverrides={{ name: "avatar" }}
+      />
 
       <div className="flex items-center justify-end space-x-2 py-4">
         <div className="flex-1 text-sm text-muted-foreground">
@@ -603,6 +792,14 @@ export function PeopleTable() {
           </Button>
         </div>
       </div>
+
+      <OffboardPersonDialog
+        person={offboardTarget}
+        open={Boolean(offboardTarget)}
+        onOpenChange={(open) => {
+          if (!open) setOffboardTarget(null);
+        }}
+      />
     </div>
   );
 }

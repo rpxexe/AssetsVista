@@ -17,15 +17,15 @@ import {
   Microchip,
   CircleArrowRight,
   LayoutDashboard,
-  Loader2,
   CloudAlert,
   Users,
-  Settings2,
   ShieldCheck,
   ClipboardList,
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
+import { Skeleton } from "skullet/react";
+import { DashboardPageSkeleton } from "@/components/skeletons/AppSkeletons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -61,11 +61,7 @@ export default function Page() {
   });
 
   if (authLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <DashboardPageSkeleton />;
   }
 
   if (isRequester) {
@@ -112,8 +108,8 @@ export default function Page() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-      <div className="border rounded-[2.5em] h-full p-4 w-full flex flex-wrap items-center justify-between gap-3 bg-card">
+    <div className="flex flex-col gap-4 p-4 pt-0">
+      <div className="border rounded-[2.5em] p-4 w-full flex flex-wrap items-center justify-between gap-3 bg-card">
         <div className="flex flex-wrap items-center gap-3">
           <LayoutDashboard strokeWidth={2.2} size={28} />
           <h3 className="text-2xl sm:text-3xl font-semibold">
@@ -128,20 +124,12 @@ export default function Page() {
 
         <div className="flex flex-wrap items-center gap-2">
           {role === "admin" ? (
-            <>
-              <Link href="/people?tab=roles">
-                <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
-                  <ShieldCheck className="h-4 w-4" />
-                  Users &amp; Roles
-                </Button>
-              </Link>
-              <Link href="/settings">
-                <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
-                  <Settings2 className="h-4 w-4" />
-                  Settings
-                </Button>
-              </Link>
-            </>
+            <Link href="/people?tab=roles">
+              <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
+                <ShieldCheck className="h-4 w-4" />
+                Users &amp; Roles
+              </Button>
+            </Link>
           ) : (
             <>
               <Link href="/assets/listall">
@@ -191,13 +179,20 @@ export default function Page() {
 
             <div className="absolute inset-0 grid place-items-center pointer-events-none">
               <span className="text-[2.5em] font-semibold transition-transform duration-400 ease-in-out group-hover:scale-105">
-                {loading ? (
-                  <Loader2 className="animate-spin text-muted-foreground" />
-                ) : error ? (
-                  <CloudAlert className="stroke-red-500 w-10 h-10" />
-                ) : (
-                  item.count
-                )}
+                <Skeleton
+                  id={`dashboard-kpi-${item.title.toLowerCase()}`}
+                  loading={loading}
+                  label={`Loading ${item.title} count`}
+                  error={
+                    !loading && error ? (
+                      <CloudAlert className="stroke-red-500 w-10 h-10" />
+                    ) : undefined
+                  }
+                >
+                  <span className="tabular-nums">
+                    {loading ? "128" : item.count}
+                  </span>
+                </Skeleton>
               </span>
             </div>
           </div>

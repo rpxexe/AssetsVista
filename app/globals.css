@@ -41,6 +41,8 @@ body {
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    --skullet-base: rgb(24 24 27 / 0.08);
+    --skullet-highlight: rgb(255 255 255 / 0.7);
   }
   .dark {
     --background: 240 10% 3.9%;
@@ -75,6 +77,8 @@ body {
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    --skullet-base: rgb(255 255 255 / 0.09);
+    --skullet-highlight: rgb(255 255 255 / 0.16);
   }
 }
 
@@ -87,6 +91,11 @@ body {
   }
 }
 
+[skullet-reveal].h-full > [skullet-pane],
+[skullet-reveal].flex-1 > [skullet-pane] {
+  height: 100%;
+}
+
 
 
 @layer base {
@@ -96,4 +105,9 @@ body {
   body {
     @apply bg-background text-foreground font-sans;
   }
+}
+
+[skullet-reveal].h-full > [skullet-pane],
+[skullet-reveal].flex-1 > [skullet-pane] {
+  height: 100%;
 }

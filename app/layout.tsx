@@ -1,5 +1,7 @@
 import "./globals.css";
+import "skullet/styles.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AppSkulletProvider } from "@/components/skullet-provider";
 import { Toaster } from "@/components/ui/toaster";
 import QueryClientProviderWrapper from "./providers/queryClientProvider";
 import { Metadata } from "next";
@@ -35,8 +37,10 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            {children}
-            <Toaster />
+            <AppSkulletProvider>
+              {children}
+              <Toaster />
+            </AppSkulletProvider>
           </ThemeProvider>
         </QueryClientProviderWrapper>
       </body>

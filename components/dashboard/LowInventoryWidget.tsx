@@ -44,6 +44,8 @@ import { useToast } from "@/hooks/use-toast";
 import { getClientErrorMessage } from "@/lib/errorMessages";
 import type { ExportColumnDef } from "@/lib/exportData";
 import type { LowStockItem } from "@/lib/lowInventory";
+import { Skeleton } from "skullet/react";
+import { SampleTableRows } from "@/components/skeletons/AppSkeletons";
 
 export function LowInventoryWidget() {
   const [collapsed, setCollapsed] = useState(false);
@@ -173,16 +175,18 @@ export function LowInventoryWidget() {
               />
             </div>
             <div className="mt-2 max-h-[340px] overflow-auto border rounded-xl">
-              {isLoading ? (
-                <div className="flex items-center justify-center py-14">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : items.length === 0 ? (
-                <div className="py-12 px-4 text-center text-xs text-muted-foreground">
-                  No low-inventory items right now. Set a Minimum Amount (&gt; 0) on Accessories,
-                  Consumables, Components, Asset Models, or Licenses to monitor stock thresholds.
-                </div>
-              ) : (
+              <Skeleton
+                id="dashboard-low-inventory"
+                loading={isLoading}
+                label="Loading low inventory alerts"
+                empty={!isLoading && items.length === 0}
+                emptyMessage={
+                  <div className="py-12 px-4 text-center text-xs text-muted-foreground">
+                    No low-inventory items right now. Set a Minimum Amount (&gt; 0) on Accessories,
+                    Consumables, Components, Asset Models, or Licenses to monitor stock thresholds.
+                  </div>
+                }
+              >
                 <Table>
                   <TableHeader>
                     <TableRow className="text-xs">
@@ -210,44 +214,51 @@ export function LowInventoryWidget() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {items.map((item) => (
-                      <TableRow key={item.compositeId} className="text-xs">
-                        <TableCell>
-                          <Checkbox
-                            checked={bulk.isSelected(item.compositeId)}
-                            onCheckedChange={(c) => bulk.toggleOne(item.compositeId, !!c)}
-                            aria-label={`Select ${item.name}`}
-                          />
-                        </TableCell>
-                        <TableCell className="max-w-[180px]">
-                        <Link href={item.href} className="font-medium hover:underline block truncate">
-                          {item.name}
-                        </Link>
-                        <span className="text-[11px] text-muted-foreground">
-                          {item.typeLabel} · Min {item.min_amt}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums">
-                        {item.remaining}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {item.canAdjustQuantity && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 rounded-full"
-                            onClick={() => handleOpenAdjust(item)}
-                            title={`Replenish ${item.name}`}
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+                    {isLoading ? (
+                      <SampleTableRows
+                        columns={["checkbox", "subtext", "number", "actions"]}
+                        rowCount={5}
+                      />
+                    ) : (
+                      items.map((item) => (
+                        <TableRow key={item.compositeId} className="text-xs">
+                          <TableCell>
+                            <Checkbox
+                              checked={bulk.isSelected(item.compositeId)}
+                              onCheckedChange={(c) => bulk.toggleOne(item.compositeId, !!c)}
+                              aria-label={`Select ${item.name}`}
+                            />
+                          </TableCell>
+                          <TableCell className="max-w-[180px]">
+                            <Link href={item.href} className="font-medium hover:underline block truncate">
+                              {item.name}
+                            </Link>
+                            <span className="text-[11px] text-muted-foreground">
+                              {item.typeLabel} · Min {item.min_amt}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold tabular-nums">
+                            {item.remaining}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {item.canAdjustQuantity && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 rounded-full"
+                                onClick={() => handleOpenAdjust(item)}
+                                title={`Replenish ${item.name}`}
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </Skeleton>
             </div>
           </>
         )}

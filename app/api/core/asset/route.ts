@@ -130,16 +130,22 @@ export async function POST(req: Request) {
         { asset_tag: body.asset_tag },
         { serial_number: body.serial_number },
       ],
-    });
+    })
+      .setOptions({ includeDeleted: true } as any)
+      .select("asset_tag serial_number deletedAt")
+      .lean<{ asset_tag: string; serial_number: string; deletedAt?: Date | null } | null>();
 
     if (existingAsset) {
+      const inTrashSuffix = existingAsset.deletedAt
+        ? " (currently in Deleted Trash — restore or permanently delete it first)"
+        : "";
       return NextResponse.json(
         {
           success: false,
           message:
             existingAsset.asset_tag === body.asset_tag
-              ? `Asset Tag '${body.asset_tag}' already exists`
-              : `Serial Number '${body.serial_number}' already exists`,
+              ? `Asset Tag '${body.asset_tag}' already exists${inTrashSuffix}`
+              : `Serial Number '${body.serial_number}' already exists${inTrashSuffix}`,
         },
         { status: 409 }
       );
@@ -222,8 +228,23 @@ export async function GET(req: NextRequest) {
     const assignedParam = searchParams.get("assigned");
     const filterParam = searchParams.get("filter");
     const pastEolParam = searchParams.get("past_eol");
+    const deletedParam = searchParams.get("deleted");
 
-    const filter: Record<string, any> = { userId: workspaceId };
+    const isDeletedView = deletedParam === "1" || deletedParam === "true";
+    if (isDeletedView) {
+      const trashAuth = await requirePermission(
+        "canDeleteAssets",
+        "Only Admins can view deleted assets."
+      );
+      if ("error" in trashAuth) {
+        return trashAuth.error;
+      }
+    }
+
+    const filter: Record<string, any> = {
+      userId: workspaceId,
+      ...(isDeletedView ? { deletedAt: { $ne: null } } : {}),
+    };
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -302,7 +323,7 @@ export async function GET(req: NextRequest) {
 
     const assets = await AssetModel.find(filter)
       .select("-qr_code -__v")
-      .sort({ createdAt: -1 })
+      .sort(isDeletedView ? { deletedAt: -1 } : { createdAt: -1 })
       .populate(query)
       .lean();
 
@@ -339,6 +360,7 @@ export async function DELETE(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
+  const permanent = searchParams.get("permanent") === "true" || searchParams.get("permanent") === "1";
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
@@ -348,11 +370,58 @@ export async function DELETE(req: NextRequest) {
   }
 
   try {
-    const deletedAsset = await AssetModel.findOneAndDelete({
-      _id: id,
-      userId: workspaceId,
-    });
-    if (!deletedAsset) {
+    if (permanent) {
+      const deletedAsset = await AssetModel.findOneAndDelete({
+        _id: id,
+        userId: workspaceId,
+      });
+      if (!deletedAsset) {
+        return NextResponse.json(
+          { success: false, message: "Asset not found" },
+          { status: 404 }
+        );
+      }
+
+      try {
+        await ActionLogModel.create({
+          userId: workspaceId,
+          item_id: deletedAsset._id,
+          item_type: "Asset",
+          item_name: deletedAsset.asset_name || deletedAsset.asset_tag,
+          action_type: "delete",
+          admin_name: authResult.actor.dbUser.name || authResult.actor.dbUser.email,
+          notes: "Asset permanently purged",
+        });
+      } catch (logErr) {
+        console.error("ActionLog error:", logErr);
+      }
+
+      invalidateElasticIndexCache(workspaceId);
+      return NextResponse.json(
+        {
+          success: true,
+          message: "Asset permanently deleted",
+          deletedAsset,
+        },
+        { status: 200 }
+      );
+    }
+
+    const softDeleted = await AssetModel.findOneAndUpdate(
+      { _id: id, userId: workspaceId },
+      {
+        $set: {
+          deletedAt: new Date(),
+          deletedBy: authResult.actor.dbUser.name || authResult.actor.dbUser.email,
+          assigned_to: null,
+          assigned_type: null,
+          checkout_date: null,
+          expected_checkin_date: null,
+        },
+      },
+      { new: true }
+    );
+    if (!softDeleted) {
       return NextResponse.json(
         { success: false, message: "Asset not found" },
         { status: 404 }
@@ -363,11 +432,12 @@ export async function DELETE(req: NextRequest) {
     try {
       await ActionLogModel.create({
         userId: workspaceId,
-        item_id: deletedAsset._id,
+        item_id: softDeleted._id,
         item_type: "Asset",
-        item_name: deletedAsset.asset_name || deletedAsset.asset_tag,
+        item_name: softDeleted.asset_name || softDeleted.asset_tag,
         action_type: "delete",
-        notes: "Asset deleted",
+        admin_name: authResult.actor.dbUser.name || authResult.actor.dbUser.email,
+        notes: "Asset moved to Deleted Trash",
       });
     } catch (logErr) {
       console.error("ActionLog error:", logErr);
@@ -378,12 +448,83 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: "Asset deleted successfully",
-        deletedAsset,
+        message: "Asset moved to Deleted Trash",
+        deletedAsset: softDeleted,
       },
       { status: 200 }
     );
   } catch (error: unknown) {
     return apiErrorResponse(error, "Error deleting asset", "Error deleting asset:");
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  await dbconnect();
+  const authResult = await requirePermission(
+    "canDeleteAssets",
+    "Only Admins can restore deleted assets."
+  );
+  if ("error" in authResult) {
+    return authResult.error;
+  }
+  const workspaceId = authResult.actor.workspaceId;
+
+  try {
+    const body = await req.json();
+    const id = String(body.id || "").trim();
+    const action = String(body.action || "").trim().toLowerCase();
+
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json(
+        { success: false, message: "Invalid or missing asset ID" },
+        { status: 400 }
+      );
+    }
+
+    if (action !== "restore") {
+      return NextResponse.json(
+        { success: false, message: "Unsupported asset patch action" },
+        { status: 400 }
+      );
+    }
+
+    const restored = await AssetModel.findOneAndUpdate(
+      { _id: id, userId: workspaceId, deletedAt: { $ne: null } },
+      { $set: { deletedAt: null, deletedBy: null } },
+      { new: true }
+    );
+    if (!restored) {
+      return NextResponse.json(
+        { success: false, message: "Deleted asset not found" },
+        { status: 404 }
+      );
+    }
+
+    try {
+      await ActionLogModel.create({
+        userId: workspaceId,
+        item_id: restored._id,
+        item_type: "Asset",
+        item_name: restored.asset_name || restored.asset_tag,
+        action_type: "update",
+        admin_name: authResult.actor.dbUser.name || authResult.actor.dbUser.email,
+        notes: "Asset restored from Deleted Trash",
+      });
+    } catch (logErr) {
+      console.error("ActionLog error:", logErr);
+    }
+
+    invalidateElasticIndexCache(workspaceId);
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: `Restored '${restored.asset_tag}' successfully`,
+        data: restored,
+      },
+      { status: 200 }
+    );
+  } catch (error: unknown) {
+    return apiErrorResponse(error, "Error restoring asset", "Error restoring asset:");
   }
 }

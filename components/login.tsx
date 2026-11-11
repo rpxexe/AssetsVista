@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useQueryClient } from "@tanstack/react-query";
+import { forgetShapes } from "skullet";
 import {
   AlertCircle,
   Eye,
@@ -109,6 +110,7 @@ export default function Login({
             };
 
       const res = await axios.post(endpoint, payload);
+      forgetShapes();
       queryClient.clear();
 
       const nextUrl = res.data?.data?.redirectTo || requestedRedirect || "/admin";

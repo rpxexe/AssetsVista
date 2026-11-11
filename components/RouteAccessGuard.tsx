@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import axios from "axios";
 import { useQueryClient } from "@tanstack/react-query";
+import { forgetShapes } from "skullet";
 import { ArrowLeft, LogOut, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,8 +19,14 @@ function getRequiredPermission(
   if (pathname.startsWith("/setup")) {
     return { key: "canRunSetup", section: "System Setup Wizard" };
   }
+  if (pathname.startsWith("/account/api")) {
+    return { key: "canManageApiKeys", section: "Personal API Keys" };
+  }
   if (pathname.startsWith("/settings")) {
     return { key: "canManageSettings", section: "System Settings" };
+  }
+  if (pathname.startsWith("/people/deleted")) {
+    return { key: "canManagePeople", section: "Deleted Users Trash" };
   }
   if (pathname.startsWith("/people")) {
     if (ownPersonId && pathname === `/people/${ownPersonId}`) {
@@ -30,8 +37,23 @@ function getRequiredPermission(
   if (pathname.startsWith("/reports")) {
     return { key: "canViewReports", section: "Reports & Audit Analytics" };
   }
+  if (pathname.startsWith("/import")) {
+    return { key: "canCreateEditAssets", section: "Data Importer" };
+  }
   if (pathname.startsWith("/maintenances")) {
     return { key: "canManageMaintenances", section: "Asset Maintenances" };
+  }
+  if (pathname.startsWith("/assets/deleted")) {
+    return { key: "canDeleteAssets", section: "Deleted Assets Trash" };
+  }
+  if (
+    pathname.startsWith("/assets/quick-scan-checkin") ||
+    pathname.startsWith("/assets/bulk-checkout")
+  ) {
+    return { key: "canCheckoutCheckin", section: "Asset Checkout & Checkin Operations" };
+  }
+  if (pathname.startsWith("/assets/scanner-bulk-audit")) {
+    return { key: "canAuditAssets", section: "Scanner Bulk Audit" };
   }
   if (
     pathname.startsWith("/licenses") ||
@@ -57,6 +79,7 @@ export function RouteAccessGuard({ children }: { children: React.ReactNode }) {
     } catch {
       // Ignore network errors during sign-out cleanup
     } finally {
+      forgetShapes();
       queryClient.clear();
       window.location.replace("/login");
     }

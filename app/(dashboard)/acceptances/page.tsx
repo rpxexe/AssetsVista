@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/table";
 import { ExportButton } from "@/components/ExportButton";
 import type { ExportColumnDef } from "@/lib/exportData";
+import { Skeleton } from "skullet/react";
+import { SampleTableRows } from "@/components/skeletons/AppSkeletons";
 
 interface AcceptanceRow {
   _id: string;
@@ -263,136 +265,160 @@ export default function AcceptancesPage() {
       />
 
       <div className="border rounded-xl bg-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10">
-                <Checkbox
-                  checked={bulk.headerCheckState(visibleAcceptanceIds)}
-                  onCheckedChange={(checked) =>
-                    bulk.toggleAll(visibleAcceptanceIds, !!checked)
-                  }
-                  aria-label="Select all acceptances"
-                />
-              </TableHead>
-              <TableHead>Item</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Assigned To</TableHead>
-              <TableHead>Checked Out</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Signature / Note</TableHead>
-              <TableHead className="text-right">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
-                  Loading acceptances...
-                </TableCell>
-              </TableRow>
-            ) : filtered.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground text-sm">
-                  No checkout acceptance records found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filtered.map((row) => (
-                <TableRow key={row._id}>
-                  <TableCell>
-                    <Checkbox
-                      checked={bulk.isSelected(row._id)}
-                      onCheckedChange={(checked) => bulk.toggleOne(row._id, !!checked)}
-                      aria-label={`Select ${row.item_name}`}
-                    />
-                  </TableCell>
-                  <TableCell className="text-xs font-medium">
-                    {row.checkoutable_type === "Asset" ? (
-                      <Link
-                        href={`/assets/view/${row.checkoutable_id}`}
-                        className="hover:underline text-foreground"
-                      >
-                        {row.item_tag ? `#${row.item_tag} - ` : ""}
-                        {row.item_name}
-                      </Link>
-                    ) : (
-                      row.item_name
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    <Badge variant="outline">{row.checkoutable_type}</Badge>
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    {row.assigned_to?._id ? (
-                      <Link
-                        href={`/people/${row.assigned_to._id}`}
-                        className="hover:underline text-foreground"
-                      >
-                        {row.assigned_to.name || row.assigned_name}
-                      </Link>
-                    ) : (
-                      row.assigned_name || "—"
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {row.createdAt ? format(new Date(row.createdAt), "MMM d, yyyy HH:mm") : "—"}
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    <Badge
-                      variant={
-                        row.status === "pending"
-                          ? "default"
-                          : row.status === "accepted"
-                          ? "secondary"
-                          : "outline"
-                      }
-                      className="capitalize"
-                    >
-                      {row.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground max-w-[220px] truncate">
-                    {row.signature ? `Signed: ${row.signature}` : row.note || "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {row.status === "pending" ? (
-                      <div className="inline-flex items-center gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 px-2 text-xs gap-1"
-                          onClick={() => openDecisionModal(row, "accept")}
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                          Accept
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 px-2 text-xs gap-1"
-                          onClick={() => openDecisionModal(row, "decline")}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                          Decline
-                        </Button>
-                      </div>
-                    ) : (
-                      <span className="text-[11px] text-muted-foreground">
-                        {row.accepted_at
-                          ? format(new Date(row.accepted_at), "MMM d")
-                          : row.declined_at
-                          ? format(new Date(row.declined_at), "MMM d")
-                          : "Resolved"}
-                      </span>
-                    )}
+        <Skeleton
+          id={`acceptances-table-${statusTab}`}
+          loading={isLoading}
+          label="Loading checkout acceptances"
+          empty={!isLoading && filtered.length === 0}
+          emptyMessage={
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox checked={false} disabled aria-label="Select all acceptances" />
+                  </TableHead>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Assigned To</TableHead>
+                  <TableHead>Checked Out</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Signature / Note</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground text-sm">
+                    No checkout acceptance records found.
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              </TableBody>
+            </Table>
+          }
+        >
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={bulk.headerCheckState(visibleAcceptanceIds)}
+                    onCheckedChange={(checked) =>
+                      bulk.toggleAll(visibleAcceptanceIds, !!checked)
+                    }
+                    aria-label="Select all acceptances"
+                  />
+                </TableHead>
+                <TableHead>Item</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Assigned To</TableHead>
+                <TableHead>Checked Out</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Signature / Note</TableHead>
+                <TableHead className="text-right">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <SampleTableRows
+                  columns={["checkbox", "text", "badge", "text", "date", "badge", "text", "actions"]}
+                  rowCount={6}
+                />
+              ) : (
+                filtered.map((row) => (
+                  <TableRow key={row._id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={bulk.isSelected(row._id)}
+                        onCheckedChange={(checked) => bulk.toggleOne(row._id, !!checked)}
+                        aria-label={`Select ${row.item_name}`}
+                      />
+                    </TableCell>
+                    <TableCell className="text-xs font-medium">
+                      {row.checkoutable_type === "Asset" ? (
+                        <Link
+                          href={`/assets/view/${row.checkoutable_id}`}
+                          className="hover:underline text-foreground"
+                        >
+                          {row.item_tag ? `#${row.item_tag} - ` : ""}
+                          {row.item_name}
+                        </Link>
+                      ) : (
+                        row.item_name
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <Badge variant="outline">{row.checkoutable_type}</Badge>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {row.assigned_to?._id ? (
+                        <Link
+                          href={`/people/${row.assigned_to._id}`}
+                          className="hover:underline text-foreground"
+                        >
+                          {row.assigned_to.name || row.assigned_name}
+                        </Link>
+                      ) : (
+                        row.assigned_name || "—"
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {row.createdAt ? format(new Date(row.createdAt), "MMM d, yyyy HH:mm") : "—"}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <Badge
+                        variant={
+                          row.status === "pending"
+                            ? "default"
+                            : row.status === "accepted"
+                            ? "secondary"
+                            : "outline"
+                        }
+                        className="capitalize"
+                      >
+                        {row.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground max-w-[220px] truncate">
+                      {row.signature ? `Signed: ${row.signature}` : row.note || "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {row.status === "pending" ? (
+                        <div className="inline-flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs gap-1"
+                            onClick={() => openDecisionModal(row, "accept")}
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                            Accept
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs gap-1"
+                            onClick={() => openDecisionModal(row, "decline")}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                            Decline
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">
+                          {row.accepted_at
+                            ? format(new Date(row.accepted_at), "MMM d")
+                            : row.declined_at
+                            ? format(new Date(row.declined_at), "MMM d")
+                            : "Resolved"}
+                        </span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </Skeleton>
       </div>
 
       <Dialog open={Boolean(activeRow)} onOpenChange={(o) => !o && setActiveRow(null)}>

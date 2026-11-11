@@ -5,6 +5,7 @@ import { canAssignRole, normalizeUserRole, USER_ROLES } from "@/lib/rbac";
 import { getAuthenticatedActor } from "@/lib/serverAuth";
 import { AccessoriesModel } from "@/models/Accessories.model";
 import { ActionLogModel } from "@/models/ActionLog.model";
+import { ApiKeyModel } from "@/models/ApiKey.model";
 import { AssetModel } from "@/models/Assets.model";
 import { CheckoutAcceptanceModel } from "@/models/CheckoutAcceptance.model";
 import { CheckoutRequestModel } from "@/models/CheckoutRequest.model";
@@ -108,14 +109,97 @@ export async function POST(req: NextRequest) {
     if (entity === "asset") {
       if (action === "delete") {
         if (!actor.permissions.canDeleteAssets) return deny();
+        const targets = await AssetModel.find({
+          _id: { $in: validIds },
+          userId: workspaceId,
+        })
+          .select("_id asset_tag asset_name")
+          .lean<Array<{ _id: mongoose.Types.ObjectId; asset_tag?: string; asset_name?: string }>>();
+
+        const res = await AssetModel.updateMany(
+          { _id: { $in: validIds }, userId: workspaceId, deletedAt: null },
+          {
+            $set: {
+              deletedAt: new Date(),
+              deletedBy: adminName,
+              assigned_to: null,
+              assigned_type: null,
+              checkout_date: null,
+              expected_checkin_date: null,
+            },
+          }
+        );
+
+        if (targets.length > 0) {
+          await ActionLogModel.insertMany(
+            targets.map((a) => ({
+              userId: workspaceId,
+              item_id: a._id,
+              item_type: "Asset" as const,
+              item_name: a.asset_name || a.asset_tag,
+              action_type: "delete" as const,
+              admin_name: adminName,
+              notes: "Asset moved to Deleted Trash (bulk delete)",
+            }))
+          ).catch(() => null);
+        }
+
+        invalidateElasticIndexCache(workspaceId);
+        return NextResponse.json({
+          success: true,
+          message: `Moved ${res.modifiedCount || 0} asset(s) to Deleted Trash.`,
+          count: res.modifiedCount || 0,
+        });
+      }
+
+      if (action === "restore") {
+        if (!actor.permissions.canDeleteAssets) return deny();
+        const targets = await AssetModel.find({
+          _id: { $in: validIds },
+          userId: workspaceId,
+          deletedAt: { $ne: null },
+        })
+          .select("_id asset_tag asset_name")
+          .lean<Array<{ _id: mongoose.Types.ObjectId; asset_tag?: string; asset_name?: string }>>();
+
+        const res = await AssetModel.updateMany(
+          { _id: { $in: validIds }, userId: workspaceId, deletedAt: { $ne: null } },
+          { $set: { deletedAt: null, deletedBy: null } }
+        );
+
+        if (targets.length > 0) {
+          await ActionLogModel.insertMany(
+            targets.map((a) => ({
+              userId: workspaceId,
+              item_id: a._id,
+              item_type: "Asset" as const,
+              item_name: a.asset_name || a.asset_tag,
+              action_type: "update" as const,
+              admin_name: adminName,
+              notes: "Asset restored from Deleted Trash (bulk restore)",
+            }))
+          ).catch(() => null);
+        }
+
+        invalidateElasticIndexCache(workspaceId);
+        return NextResponse.json({
+          success: true,
+          message: `Restored ${res.modifiedCount || 0} asset(s) from Deleted Trash.`,
+          count: res.modifiedCount || 0,
+        });
+      }
+
+      if (action === "force_delete") {
+        if (!actor.permissions.canDeleteAssets) return deny();
         const res = await AssetModel.deleteMany({
           _id: { $in: validIds },
           userId: workspaceId,
+          deletedAt: { $ne: null },
         });
         invalidateElasticIndexCache(workspaceId);
         return NextResponse.json({
           success: true,
-          message: `Deleted ${res.deletedCount || 0} asset(s).`,
+          message: `Permanently deleted ${res.deletedCount || 0} asset(s).`,
           count: res.deletedCount || 0,
         });
       }
@@ -139,7 +223,7 @@ export async function POST(req: NextRequest) {
           );
         }
         const res = await AssetModel.updateMany(
-          { _id: { $in: validIds }, userId: workspaceId },
+          { _id: { $in: validIds }, userId: workspaceId, deletedAt: null },
           { $set: { status: statusDoc._id } }
         );
         invalidateElasticIndexCache(workspaceId);
@@ -160,7 +244,7 @@ export async function POST(req: NextRequest) {
           .lean<{ _id: mongoose.Types.ObjectId } | null>();
 
         const res = await AssetModel.updateMany(
-          { _id: { $in: validIds }, userId: workspaceId, assigned_to: { $ne: null } },
+          { _id: { $in: validIds }, userId: workspaceId, deletedAt: null, assigned_to: { $ne: null } },
           {
             $set: {
               assigned_to: null,
@@ -217,41 +301,174 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. People Directory bulk delete (protects people with active assigned assets)
-    if (entity === "people" && action === "delete") {
+    // 3. People Directory bulk actions (soft-delete, restore, purge)
+    if (entity === "people") {
       if (!actor.permissions.canManagePeople) return deny();
 
-      const busyPersonIdsRaw = await AssetModel.distinct("assigned_to", {
-        userId: workspaceId,
-        assigned_to: { $in: validIds },
-      });
-      const busySet = new Set(busyPersonIdsRaw.map((id) => String(id)));
-      const deletableIds = validIds.filter((id) => !busySet.has(id));
-
-      if (deletableIds.length === 0) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Selected people currently hold assigned assets and cannot be deleted.",
-          },
-          { status: 400 }
+      if (action === "delete") {
+        const busyPersonIdsRaw = await AssetModel.distinct("assigned_to", {
+          userId: workspaceId,
+          assigned_to: { $in: validIds },
+        });
+        const busySet = new Set(busyPersonIdsRaw.map((id) => String(id)));
+        const ownPersonId = actor.dbUser.personId || "";
+        const deletableIds = validIds.filter(
+          (id) => !busySet.has(id) && id !== ownPersonId
         );
+
+        if (deletableIds.length === 0) {
+          return NextResponse.json(
+            {
+              success: false,
+              message:
+                "Selected people either hold assigned assets or match your own active profile.",
+            },
+            { status: 400 }
+          );
+        }
+
+        const targets = await PeopleModel.find({
+          _id: { $in: deletableIds },
+          userId: workspaceId,
+          deletedAt: null,
+        })
+          .select("_id name username email")
+          .lean<
+            Array<{
+              _id: mongoose.Types.ObjectId;
+              name?: string;
+              username?: string;
+              email?: string;
+            }>
+          >();
+
+        const res = await PeopleModel.updateMany(
+          { _id: { $in: deletableIds }, userId: workspaceId, deletedAt: null },
+          { $set: { deletedAt: new Date(), deletedBy: adminName } }
+        );
+
+        const emails = targets
+          .map((t) => t.email?.trim().toLowerCase())
+          .filter((e): e is string => Boolean(e));
+        const targetObjIds = targets.map((t) => t._id);
+
+        if (targetObjIds.length > 0) {
+          const linkedUsers = await UserModel.find({
+            $and: [
+              { workspaceId },
+              {
+                $or: [
+                  { personId: { $in: targetObjIds } },
+                  ...(emails.length > 0 ? [{ email: { $in: emails } }] : []),
+                ],
+              },
+            ],
+          })
+            .select("_id")
+            .lean<Array<{ _id: mongoose.Types.ObjectId }>>();
+
+          const linkedUserIds = linkedUsers
+            .map((u) => u._id)
+            .filter((uid) => String(uid) !== actor.userId);
+
+          if (linkedUserIds.length > 0) {
+            await Promise.all([
+              UserModel.updateMany(
+                { _id: { $in: linkedUserIds } },
+                { $set: { isActive: false } }
+              ),
+              ApiKeyModel.updateMany(
+                { userId: { $in: linkedUserIds }, workspaceId, revokedAt: null },
+                { $set: { revokedAt: new Date() } }
+              ),
+            ]);
+          }
+
+          await ActionLogModel.insertMany(
+            targets.map((p) => ({
+              userId: workspaceId,
+              item_id: p._id,
+              item_type: "People" as const,
+              item_name: p.name || p.username,
+              action_type: "delete" as const,
+              admin_id: actor.userId,
+              admin_name: adminName,
+              notes: "Moved person to Deleted Users Trash (bulk delete; login & keys suspended)",
+            }))
+          ).catch(() => null);
+        }
+
+        invalidateElasticIndexCache(workspaceId);
+        const skipped = validIds.length - deletableIds.length;
+        return NextResponse.json({
+          success: true,
+          message:
+            skipped > 0
+              ? `Moved ${res.modifiedCount || 0} person record(s) to Deleted Trash; skipped ${skipped}.`
+              : `Moved ${res.modifiedCount || 0} person record(s) to Deleted Trash.`,
+          count: res.modifiedCount || 0,
+        });
       }
 
-      const res = await PeopleModel.deleteMany({
-        _id: { $in: deletableIds },
-        userId: workspaceId,
-      });
-      invalidateElasticIndexCache(workspaceId);
-      const skipped = validIds.length - deletableIds.length;
-      return NextResponse.json({
-        success: true,
-        message:
-          skipped > 0
-            ? `Deleted ${res.deletedCount || 0} person record(s); skipped ${skipped} with active assignments.`
-            : `Deleted ${res.deletedCount || 0} person record(s).`,
-        count: res.deletedCount || 0,
-      });
+      if (action === "restore") {
+        const targets = await PeopleModel.find({
+          _id: { $in: validIds },
+          userId: workspaceId,
+          deletedAt: { $ne: null },
+        })
+          .setOptions({ includeDeleted: true })
+          .select("_id name username")
+          .lean<Array<{ _id: mongoose.Types.ObjectId; name?: string; username?: string }>>();
+
+        const res = await PeopleModel.updateMany(
+          { _id: { $in: validIds }, userId: workspaceId, deletedAt: { $ne: null } },
+          { $set: { deletedAt: null, deletedBy: null } }
+        );
+
+        if (targets.length > 0) {
+          await ActionLogModel.insertMany(
+            targets.map((p) => ({
+              userId: workspaceId,
+              item_id: p._id,
+              item_type: "People" as const,
+              item_name: p.name || p.username,
+              action_type: "update" as const,
+              admin_id: actor.userId,
+              admin_name: adminName,
+              notes: "Restored person from Deleted Users Trash (bulk restore)",
+            }))
+          ).catch(() => null);
+        }
+
+        invalidateElasticIndexCache(workspaceId);
+        return NextResponse.json({
+          success: true,
+          message: `Restored ${res.modifiedCount || 0} person record(s) to People Directory.`,
+          count: res.modifiedCount || 0,
+        });
+      }
+
+      if (action === "purge") {
+        const busyPersonIdsRaw = await AssetModel.distinct("assigned_to", {
+          userId: workspaceId,
+          assigned_to: { $in: validIds },
+        });
+        const busySet = new Set(busyPersonIdsRaw.map((id) => String(id)));
+        const purgeableIds = validIds.filter((id) => !busySet.has(id));
+
+        const res = await PeopleModel.deleteMany({
+          _id: { $in: purgeableIds },
+          userId: workspaceId,
+          deletedAt: { $ne: null },
+        });
+
+        invalidateElasticIndexCache(workspaceId);
+        return NextResponse.json({
+          success: true,
+          message: `Permanently purged ${res.deletedCount || 0} deleted person record(s).`,
+          count: res.deletedCount || 0,
+        });
+      }
     }
 
     // 4. User Role & Account Access Management
@@ -340,6 +557,12 @@ export async function POST(req: NextRequest) {
           },
           { $set: { isActive: nextState } }
         );
+        if (!nextState && safeIds.length > 0) {
+          await ApiKeyModel.updateMany(
+            { userId: { $in: safeIds }, workspaceId, revokedAt: null },
+            { $set: { revokedAt: new Date() } }
+          ).catch(() => null);
+        }
         return NextResponse.json({
           success: true,
           message: `${nextState ? "Activated" : "Suspended"} ${res.modifiedCount || 0} account(s).`,
@@ -380,6 +603,10 @@ export async function POST(req: NextRequest) {
           _id: { $in: safeIds },
           $or: [{ workspaceId }, { clerkId: workspaceId, workspaceId: { $exists: false } }],
         });
+        await ApiKeyModel.updateMany(
+          { userId: { $in: safeIds }, workspaceId, revokedAt: null },
+          { $set: { revokedAt: new Date() } }
+        ).catch(() => null);
         return NextResponse.json({
           success: true,
           message: `Deleted ${res.deletedCount || 0} login account(s).`,

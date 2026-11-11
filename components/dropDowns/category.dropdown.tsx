@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { SelectOptionsSkullet } from "@/components/skeletons/AppSkeletons";
 import {
   Select,
   SelectContent,
@@ -36,21 +36,19 @@ export function CategoryBox({ value, onChange }: CategoryProps) {
       <SelectContent>
         <ScrollArea className="h-48 w-full">
           <SelectGroup>
-            {isLoading ? (
-              <div className="w-full h-full flex items-center justify-center">
-                <Loader2 className="animate-spin" />
-              </div>
-            ) : isError ? (
-              <div className="w-full flex items-center justify-center">
-                <p className="text-muted-foreground text-red-600">Failed to fetch data</p>
-              </div>
-            ) : (
-              categories.map((category) => (
+            <SelectOptionsSkullet
+              id="select-categories"
+              isLoading={isLoading}
+              isError={isError}
+              isEmpty={!isLoading && !isError && categories.length === 0}
+              emptyText="No categories found"
+            >
+              {categories.map((category) => (
                 <SelectItem key={category.name} value={category.name}>
                   {category.name}
                 </SelectItem>
-              ))
-            )}
+              ))}
+            </SelectOptionsSkullet>
           </SelectGroup>
         </ScrollArea>
       </SelectContent>

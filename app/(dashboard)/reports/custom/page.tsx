@@ -10,10 +10,11 @@ import {
   DollarSign,
   Filter,
   Laptop,
-  Loader2,
   RefreshCw,
   Search,
 } from "lucide-react";
+import { Skeleton } from "skullet/react";
+import { SampleTableRows } from "@/components/skeletons/AppSkeletons";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -209,45 +210,52 @@ export default function CustomAssetReportPage() {
       </div>
 
       {/* KPI Cards Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="border rounded-2xl p-4 bg-card">
-          <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Filtered Assets</span>
-            <Laptop className="h-4 w-4" />
+      <Skeleton id="custom-report-kpis" loading={isLoading} label="Loading report summary">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="border rounded-2xl p-4 bg-card">
+            <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
+              <span>Filtered Assets</span>
+              <Laptop className="h-4 w-4" />
+            </div>
+            <p className="text-3xl font-bold mt-2">{isLoading ? 64 : metrics.totalCount}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              out of {isLoading ? 64 : assets.length} total
+            </p>
           </div>
-          <p className="text-3xl font-bold mt-2">{metrics.totalCount}</p>
-          <p className="text-xs text-muted-foreground mt-1">out of {assets.length} total</p>
-        </div>
 
-        <div className="border rounded-2xl p-4 bg-card">
-          <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Total Purchase Cost</span>
-            <DollarSign className="h-4 w-4" />
+          <div className="border rounded-2xl p-4 bg-card">
+            <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
+              <span>Total Purchase Cost</span>
+              <DollarSign className="h-4 w-4" />
+            </div>
+            <p className="text-3xl font-bold mt-2">
+              $
+              {isLoading
+                ? "92,400.00"
+                : metrics.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">original asset spend</p>
           </div>
-          <p className="text-3xl font-bold mt-2">
-            ${metrics.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">original asset spend</p>
-        </div>
 
-        <div className="border rounded-2xl p-4 bg-card">
-          <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Checked Out / Deployed</span>
-            <CheckCircle2 className="h-4 w-4 text-blue-600" />
+          <div className="border rounded-2xl p-4 bg-card">
+            <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
+              <span>Checked Out / Deployed</span>
+              <CheckCircle2 className="h-4 w-4 text-blue-600" />
+            </div>
+            <p className="text-3xl font-bold mt-2">{isLoading ? 41 : metrics.deployedCount}</p>
+            <p className="text-xs text-muted-foreground mt-1">in employee hands</p>
           </div>
-          <p className="text-3xl font-bold mt-2">{metrics.deployedCount}</p>
-          <p className="text-xs text-muted-foreground mt-1">in employee hands</p>
-        </div>
 
-        <div className="border rounded-2xl p-4 bg-card">
-          <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Ready / Available</span>
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
+          <div className="border rounded-2xl p-4 bg-card">
+            <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
+              <span>Ready / Available</span>
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+            </div>
+            <p className="text-3xl font-bold mt-2">{isLoading ? 23 : metrics.availableCount}</p>
+            <p className="text-xs text-muted-foreground mt-1">in stock / deployable</p>
           </div>
-          <p className="text-3xl font-bold mt-2">{metrics.availableCount}</p>
-          <p className="text-xs text-muted-foreground mt-1">in stock / deployable</p>
         </div>
-      </div>
+      </Skeleton>
 
       {/* Filters Bar */}
       <div className="border rounded-2xl p-4 bg-card space-y-3">
@@ -305,13 +313,48 @@ export default function CustomAssetReportPage() {
       />
 
       {/* Assets Table */}
-      {isLoading ? (
-        <div className="flex justify-center items-center py-16">
-          <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
-        </div>
-      ) : error ? (
-        <p className="text-center text-red-500 py-8">Failed to load asset report.</p>
-      ) : (
+      <Skeleton
+        id="custom-report-table"
+        loading={isLoading}
+        label="Loading custom asset report"
+        empty={!isLoading && !error && filteredAssets.length === 0}
+        emptyMessage={
+          <div className="rounded-2xl border overflow-x-auto bg-card">
+            <Table className="min-w-max w-full">
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox checked={false} disabled aria-label="Select all assets" />
+                  </TableHead>
+                  <TableHead>Image</TableHead>
+                  <TableHead>Asset Tag</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Model</TableHead>
+                  <TableHead>Serial Number</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Assigned To</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Cost</TableHead>
+                  <TableHead>Purchase Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell colSpan={12} className="h-24 text-center text-muted-foreground">
+                    No assets matched your filter criteria.
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        }
+        error={
+          !isLoading && error ? (
+            <p className="text-center text-red-500 py-8">Failed to load asset report.</p>
+          ) : undefined
+        }
+      >
         <div className="rounded-2xl border overflow-x-auto bg-card">
           <Table className="min-w-max w-full">
             <TableHeader className="bg-muted/50">
@@ -337,12 +380,24 @@ export default function CustomAssetReportPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAssets.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={12} className="h-24 text-center text-muted-foreground">
-                    No assets matched your filter criteria.
-                  </TableCell>
-                </TableRow>
+              {isLoading ? (
+                <SampleTableRows
+                  columns={[
+                    "checkbox",
+                    "thumb",
+                    "mono",
+                    "text",
+                    "text",
+                    "mono",
+                    "badge",
+                    "badge",
+                    "text",
+                    "text",
+                    "number",
+                    "date",
+                  ]}
+                  rowCount={6}
+                />
               ) : (
                 filteredAssets.map((asset: any) => {
                   const assigned = asset.assigned_to;
@@ -405,7 +460,7 @@ export default function CustomAssetReportPage() {
             </TableBody>
           </Table>
         </div>
-      )}
+      </Skeleton>
     </div>
   );
 }

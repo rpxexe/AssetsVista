@@ -7,6 +7,7 @@ import {
   ChevronsUpDown,
   ClipboardList,
   HardDriveUpload,
+  KeyRound,
   LogOut,
   Settings,
   UserCog,
@@ -42,12 +43,32 @@ import { ROLE_METADATA } from "@/lib/rbac";
 import { useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "next/link";
+import { forgetShapes } from "skullet";
+import { Skeleton } from "skullet/react";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
-  const { role, permissions, dbUser, person } = usePermissions();
+  const { role, permissions, dbUser, person, isLoading } = usePermissions();
   const queryClient = useQueryClient();
   const [accountOpen, setAccountOpen] = useState(false);
+
+  if (isLoading) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <Skeleton id="sidebar-nav-user" loading label="Loading user account" className="w-full">
+            <SidebarMenuButton size="lg" className="w-full">
+              <div className="h-8 w-8 rounded-lg border bg-muted/40 shrink-0" />
+              <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
+                <span className="truncate font-semibold">Workspace Member</span>
+                <span className="truncate text-xs text-muted-foreground">Assets Admin</span>
+              </div>
+            </SidebarMenuButton>
+          </Skeleton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    );
+  }
 
   if (!dbUser) return null;
 
@@ -76,6 +97,7 @@ export function NavUser() {
     } catch {
       // Proceed cleanly even if session cookie expired
     } finally {
+      forgetShapes();
       queryClient.clear();
       window.location.replace("/login");
     }
@@ -165,11 +187,11 @@ export function NavUser() {
                   <UserCog />
                   Account &amp; Password Settings
                 </DropdownMenuItem>
-                {permissions.canManageSettings && (
-                  <Link href="/settings">
+                {permissions.canManageApiKeys && (
+                  <Link href="/account/api">
                     <DropdownMenuItem className="cursor-pointer">
-                      <Settings />
-                      Admin Settings
+                      <KeyRound />
+                      Manage API Keys
                     </DropdownMenuItem>
                   </Link>
                 )}

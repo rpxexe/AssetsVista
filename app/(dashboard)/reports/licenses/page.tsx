@@ -10,12 +10,13 @@ import {
   DollarSign,
   FilePieChart,
   KeyRound,
-  Loader2,
   RefreshCw,
   Search,
   Users,
   XCircle,
 } from "lucide-react";
+import { Skeleton } from "skullet/react";
+import { SampleTableRows } from "@/components/skeletons/AppSkeletons";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -185,58 +186,63 @@ export default function LicenseReportPage() {
       </div>
 
       {/* KPI Cards Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="border rounded-2xl p-4 bg-card">
-          <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Total Titles</span>
-            <KeyRound className="h-4 w-4" />
+      <Skeleton id="license-report-kpis" loading={isLoading} label="Loading license summary">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="border rounded-2xl p-4 bg-card">
+            <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
+              <span>Total Titles</span>
+              <KeyRound className="h-4 w-4" />
+            </div>
+            <p className="text-3xl font-bold mt-2">{isLoading ? 18 : summary.total_licenses}</p>
+            <p className="text-xs text-muted-foreground mt-1">software licenses</p>
           </div>
-          <p className="text-3xl font-bold mt-2">{summary.total_licenses}</p>
-          <p className="text-xs text-muted-foreground mt-1">software licenses</p>
-        </div>
 
-        <div className="border rounded-2xl p-4 bg-card">
-          <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Total Seats</span>
-            <Users className="h-4 w-4" />
+          <div className="border rounded-2xl p-4 bg-card">
+            <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
+              <span>Total Seats</span>
+              <Users className="h-4 w-4" />
+            </div>
+            <p className="text-3xl font-bold mt-2">{isLoading ? 240 : summary.total_seats}</p>
+            <p className="text-xs text-muted-foreground mt-1">total user licenses</p>
           </div>
-          <p className="text-3xl font-bold mt-2">{summary.total_seats}</p>
-          <p className="text-xs text-muted-foreground mt-1">total user licenses</p>
-        </div>
 
-        <div className="border rounded-2xl p-4 bg-card">
-          <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Seats In Use</span>
-            <CheckCircle2 className="h-4 w-4 text-blue-600" />
+          <div className="border rounded-2xl p-4 bg-card">
+            <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
+              <span>Seats In Use</span>
+              <CheckCircle2 className="h-4 w-4 text-blue-600" />
+            </div>
+            <p className="text-3xl font-bold mt-2 text-blue-600 dark:text-blue-400">
+              {isLoading ? 184 : summary.total_seats_in_use}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">assigned to people</p>
           </div>
-          <p className="text-3xl font-bold mt-2 text-blue-600 dark:text-blue-400">
-            {summary.total_seats_in_use}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">assigned to people</p>
-        </div>
 
-        <div className="border rounded-2xl p-4 bg-card">
-          <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Expiring / Expired</span>
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
+          <div className="border rounded-2xl p-4 bg-card">
+            <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
+              <span>Expiring / Expired</span>
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+            </div>
+            <p className="text-3xl font-bold mt-2 text-amber-500">
+              {isLoading ? 3 : summary.expired_count + summary.expiring_soon_count}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">action required</p>
           </div>
-          <p className="text-3xl font-bold mt-2 text-amber-500">
-            {summary.expired_count + summary.expiring_soon_count}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">action required</p>
-        </div>
 
-        <div className="border rounded-2xl p-4 bg-card">
-          <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Total Software Spend</span>
-            <DollarSign className="h-4 w-4 text-green-600" />
+          <div className="border rounded-2xl p-4 bg-card">
+            <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
+              <span>Total Software Spend</span>
+              <DollarSign className="h-4 w-4 text-green-600" />
+            </div>
+            <p className="text-3xl font-bold mt-2">
+              $
+              {isLoading
+                ? "18,400.00"
+                : summary.total_spend.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">capital spent</p>
           </div>
-          <p className="text-3xl font-bold mt-2">
-            ${summary.total_spend.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">capital spent</p>
         </div>
-      </div>
+      </Skeleton>
 
       {/* Filter / Search Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -298,13 +304,47 @@ export default function LicenseReportPage() {
       />
 
       {/* Table */}
-      {isLoading ? (
-        <div className="flex justify-center items-center py-16">
-          <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
-        </div>
-      ) : error ? (
-        <p className="text-center text-red-500 py-8">Failed to load license report.</p>
-      ) : (
+      <Skeleton
+        id="license-report-table"
+        loading={isLoading}
+        label="Loading license compliance report"
+        empty={!isLoading && !error && filteredItems.length === 0}
+        emptyMessage={
+          <div className="rounded-2xl border overflow-x-auto bg-card">
+            <Table className="min-w-max w-full">
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox checked={false} disabled aria-label="Select all licenses" />
+                  </TableHead>
+                  <TableHead>Software Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Manufacturer</TableHead>
+                  <TableHead>Product Key</TableHead>
+                  <TableHead>Total Seats</TableHead>
+                  <TableHead>In Use</TableHead>
+                  <TableHead>Available</TableHead>
+                  <TableHead>Cost</TableHead>
+                  <TableHead>Expiry Date</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell colSpan={11} className="h-24 text-center text-muted-foreground">
+                    No software licenses found matching criteria.
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        }
+        error={
+          !isLoading && error ? (
+            <p className="text-center text-red-500 py-8">Failed to load license report.</p>
+          ) : undefined
+        }
+      >
         <div className="rounded-2xl border overflow-x-auto bg-card">
           <Table className="min-w-max w-full">
             <TableHeader className="bg-muted/50">
@@ -329,12 +369,23 @@ export default function LicenseReportPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredItems.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={11} className="h-24 text-center text-muted-foreground">
-                    No software licenses found matching criteria.
-                  </TableCell>
-                </TableRow>
+              {isLoading ? (
+                <SampleTableRows
+                  columns={[
+                    "checkbox",
+                    "text",
+                    "text",
+                    "text",
+                    "mono",
+                    "number",
+                    "number",
+                    "number",
+                    "number",
+                    "date",
+                    "badge",
+                  ]}
+                  rowCount={6}
+                />
               ) : (
                 filteredItems.map((lic: any) => (
                   <TableRow key={lic._id}>
@@ -369,7 +420,7 @@ export default function LicenseReportPage() {
             </TableBody>
           </Table>
         </div>
-      )}
+      </Skeleton>
     </div>
   );
 }

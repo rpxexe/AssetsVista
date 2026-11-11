@@ -37,12 +37,12 @@ export default async function DashboardLayout({
           </div>
           <DashboardHeaderActions />
         </header>
-        <hr />
-        <main className="font-sans pt-2 text-sidebar-foreground">
+        <hr className="shrink-0" />
+        <div className="flex-1 w-full min-w-0 font-sans pt-2 text-sidebar-foreground">
           <RouteAccessGuard>{children}</RouteAccessGuard>
-        </main>
-        <hr />
-        <footer className="bg-sidebar">
+        </div>
+        <hr className="mt-auto shrink-0" />
+        <footer className="shrink-0 bg-sidebar">
           <div className="w-full h-16 flex items-center justify-start p-5 gap-1 text-sm">
             <Cog className="w-5 h-5 animate-spin-slow" />
             <Link href="/admin" className="underline">

@@ -35,6 +35,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import axios, { AxiosError } from "axios";
 import { format } from "date-fns";
 import { CalendarIcon, Edit, Loader2 } from "lucide-react";
+import { Skeleton } from "skullet/react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -96,8 +97,9 @@ const formSchema = z.object({
 });
 type Editprops = {
   id: string;
+  trigger?: React.ReactNode;
 };
-const AssetEditForm: React.FC<Editprops> = ({ id }) => {
+const AssetEditForm: React.FC<Editprops> = ({ id, trigger }) => {
   const { toast } = useToast();
   const [loading, setIsLoading] = useState(false);
   const [open, setOpen] = useState(false);
@@ -130,6 +132,7 @@ const AssetEditForm: React.FC<Editprops> = ({ id }) => {
   };
   const {
     data: assetData,
+    isLoading: isFetching,
   } = useQuery({
     queryKey: ["asset", id], // Cache the query based on `id`
     queryFn: () => fetchAsset(id),
@@ -197,6 +200,10 @@ const AssetEditForm: React.FC<Editprops> = ({ id }) => {
       });
       queryClient.invalidateQueries({ queryKey: ["assets"] });
       queryClient.invalidateQueries({ queryKey: ["asset", id] });
+      queryClient.invalidateQueries({ queryKey: ["status"] });
+      queryClient.invalidateQueries({ queryKey: ["asset-sidebar-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-recent-activity"] });
+      queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
       setOpen(false);
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
@@ -214,19 +221,22 @@ const AssetEditForm: React.FC<Editprops> = ({ id }) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          size="icon"
-          variant="outline"
-          className="border text-blue-500 hover:text-blue-700"
-        >
-          <Edit size={20} />
-        </Button>
+        {trigger || (
+          <Button
+            size="icon"
+            variant="outline"
+            className="border text-blue-500 hover:text-blue-700"
+          >
+            <Edit size={20} />
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl">Edit Asset</DialogTitle>
           </DialogHeader>
-          <Form {...form}>
+          <Skeleton id="edit-asset-form" loading={isFetching} label="Loading asset details">
+            <Form {...form}>
             <form
               onSubmit={form.handleSubmit(onSubmit)}
               className="space-y-3 max-w-3xl mx-auto py-5"
@@ -624,6 +634,7 @@ const AssetEditForm: React.FC<Editprops> = ({ id }) => {
               </DialogFooter>
             </form>
           </Form>
+          </Skeleton>
       </DialogContent>
     </Dialog>
   );

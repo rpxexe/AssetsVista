@@ -5,6 +5,7 @@ import Link from "next/link";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { Flag, AlertTriangle, ArrowRight } from "lucide-react";
+import { Skeleton } from "skullet/react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -14,7 +15,7 @@ import {
 import type { LowStockItem } from "@/lib/lowInventory";
 
 export function AlertBellMenu() {
-  const { data } = useQuery<{
+  const { data, isLoading } = useQuery<{
     data: LowStockItem[];
     total: number;
   }>({
@@ -39,13 +40,15 @@ export function AlertBellMenu() {
           aria-label={`Alerts (${totalCount})`}
         >
           <Flag className="h-4 w-4" />
-          <span
-            className={`inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-[11px] font-semibold rounded-full bg-primary text-primary-foreground ${
-              totalCount === 0 ? "opacity-40" : ""
-            }`}
-          >
-            {totalCount}
-          </span>
+          <Skeleton loading={isLoading} label="Loading alert count" className="rounded-full">
+            <span
+              className={`inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-[11px] font-semibold rounded-full bg-primary text-primary-foreground ${
+                !isLoading && totalCount === 0 ? "opacity-40" : ""
+              }`}
+            >
+              {isLoading ? "0" : totalCount}
+            </span>
+          </Skeleton>
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
@@ -60,37 +63,58 @@ export function AlertBellMenu() {
         </div>
 
         <div className="max-h-72 overflow-y-auto divide-y">
-          {items.length === 0 ? (
-            <div className="px-4 py-6 text-center text-xs text-muted-foreground">
-              All stocked items are above minimum thresholds.
-            </div>
-          ) : (
-            items.slice(0, 50).map((item) => (
-              <Link
-                key={item.compositeId}
-                href={item.href}
-                className="block px-4 py-2.5 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center justify-between gap-2 text-xs">
-                  <span className="font-medium truncate">{item.name}</span>
-                  <span className="text-muted-foreground shrink-0">
-                    {item.remaining} remaining
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-2 mt-1.5">
-                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full bg-primary transition-all"
-                      style={{ width: `${Math.max(4, item.percent)}%` }}
-                    />
-                  </div>
-                  <span className="text-[10px] text-muted-foreground shrink-0">
-                    Min {item.min_amt}
-                  </span>
-                </div>
-              </Link>
-            ))
-          )}
+          <Skeleton
+            id="alert-bell-items"
+            loading={isLoading}
+            label="Loading low inventory alerts"
+            empty={!isLoading && items.length === 0}
+            emptyMessage={
+              <div className="px-4 py-6 text-center text-xs text-muted-foreground">
+                All stocked items are above minimum thresholds.
+              </div>
+            }
+          >
+            {isLoading
+              ? ["USB-C Docking Station", "CAT6 Patch Cable Pack", "Thermal Paper Rolls"].map(
+                  (sampleName) => (
+                    <div key={sampleName} className="px-4 py-2.5">
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="font-medium truncate">{sampleName}</span>
+                        <span className="text-muted-foreground shrink-0">2 remaining</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 mt-1.5">
+                        <div className="flex-1 h-1.5 rounded-full bg-muted" />
+                        <span className="text-[10px] text-muted-foreground shrink-0">Min 10</span>
+                      </div>
+                    </div>
+                  )
+                )
+              : items.slice(0, 50).map((item) => (
+                  <Link
+                    key={item.compositeId}
+                    href={item.href}
+                    className="block px-4 py-2.5 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="font-medium truncate">{item.name}</span>
+                      <span className="text-muted-foreground shrink-0">
+                        {item.remaining} remaining
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 mt-1.5">
+                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full bg-primary transition-all"
+                          style={{ width: `${Math.max(4, item.percent)}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-muted-foreground shrink-0">
+                        Min {item.min_amt}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+          </Skeleton>
         </div>
 
         <div className="p-2 border-t bg-muted/20">

@@ -13,12 +13,13 @@ import {
   Keyboard,
   LayoutPanelTop,
   LibraryBig,
-  Loader2,
   Microchip,
   RefreshCw,
   Search,
   X,
 } from "lucide-react";
+import { Skeleton } from "skullet/react";
+import { SampleTableRows } from "@/components/skeletons/AppSkeletons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -185,15 +186,17 @@ export function CategoriesSummaryWidget() {
             />
 
             <div className="max-h-[300px] overflow-auto border rounded-xl">
-              {isLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : rows.length === 0 ? (
-                <div className="py-10 text-center text-xs text-muted-foreground">
-                  No categories found.
-                </div>
-              ) : (
+              <Skeleton
+                id="dashboard-categories-summary"
+                loading={isLoading}
+                label="Loading categories summary"
+                empty={!isLoading && rows.length === 0}
+                emptyMessage={
+                  <div className="py-10 text-center text-xs text-muted-foreground">
+                    No categories found.
+                  </div>
+                }
+              >
                 <Table>
                   <TableHeader>
                     <TableRow className="text-xs">
@@ -246,39 +249,55 @@ export function CategoriesSummaryWidget() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((cat) => (
-                      <TableRow key={cat._id} className="text-xs">
-                        <TableCell>
-                          <Checkbox
-                            checked={bulk.isSelected(cat._id)}
-                            onCheckedChange={(c) => bulk.toggleOne(cat._id, !!c)}
-                            aria-label={`Select ${cat.name}`}
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium truncate max-w-[150px]">
-                          <Link
-                            href="/settings/category"
-                            className="hover:underline inline-flex items-center gap-1.5"
-                          >
-                            <span className="h-2 w-2 rounded-sm bg-primary/70 shrink-0" />
-                            <span className="truncate">{cat.name}</span>
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-[10px] font-normal lowercase">
-                            {cat.type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center tabular-nums">{cat.assets_count}</TableCell>
-                        <TableCell className="text-center tabular-nums">{cat.licenses_count}</TableCell>
-                        <TableCell className="text-center tabular-nums">{cat.accessories_count}</TableCell>
-                        <TableCell className="text-center tabular-nums">{cat.consumables_count}</TableCell>
-                        <TableCell className="text-center tabular-nums">{cat.components_count}</TableCell>
-                      </TableRow>
-                    ))}
+                    {isLoading ? (
+                      <SampleTableRows
+                        columns={[
+                          "checkbox",
+                          "text",
+                          "badge",
+                          "number",
+                          "number",
+                          "number",
+                          "number",
+                          "number",
+                        ]}
+                        rowCount={5}
+                      />
+                    ) : (
+                      rows.map((cat) => (
+                        <TableRow key={cat._id} className="text-xs">
+                          <TableCell>
+                            <Checkbox
+                              checked={bulk.isSelected(cat._id)}
+                              onCheckedChange={(c) => bulk.toggleOne(cat._id, !!c)}
+                              aria-label={`Select ${cat.name}`}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium truncate max-w-[150px]">
+                            <Link
+                              href="/settings/category"
+                              className="hover:underline inline-flex items-center gap-1.5"
+                            >
+                              <span className="h-2 w-2 rounded-sm bg-primary/70 shrink-0" />
+                              <span className="truncate">{cat.name}</span>
+                            </Link>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[10px] font-normal lowercase">
+                              {cat.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center tabular-nums">{cat.assets_count}</TableCell>
+                          <TableCell className="text-center tabular-nums">{cat.licenses_count}</TableCell>
+                          <TableCell className="text-center tabular-nums">{cat.accessories_count}</TableCell>
+                          <TableCell className="text-center tabular-nums">{cat.consumables_count}</TableCell>
+                          <TableCell className="text-center tabular-nums">{cat.components_count}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
-              )}
+              </Skeleton>
             </div>
           </div>
         )}

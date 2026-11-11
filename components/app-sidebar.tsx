@@ -29,7 +29,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const isRequester = enforced && !permissions.canCreateEditAssets;
 
   const visibleNavAssets = React.useMemo(() => {
-    if (!isRequester) return data.navAsset;
+    if (!isRequester) {
+      if (!enforced) return data.navAsset;
+      return data.navAsset.map((group) => ({
+        ...group,
+        items: group.items?.filter(
+          (sub) => !sub.permissionKey || permissions[sub.permissionKey]
+        ),
+      }));
+    }
 
     const requesterItems = [
       {
@@ -67,16 +75,32 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         items: requesterItems,
       },
     ];
-  }, [isRequester, person?._id]);
+  }, [enforced, isRequester, permissions, person?._id]);
 
   const visibleProjects = React.useMemo(() => {
     if (!enforced || permissions.canCreateEditAssets) {
-      if (!enforced || permissions.canViewPeople) return data.projects;
-      return data.projects.filter((p) => p.url !== "/people");
+      return data.projects;
     }
     // Requesters do not manage standalone inventory categories (Licenses/Accessories/etc.)
     return [];
-  }, [enforced, permissions.canCreateEditAssets, permissions.canViewPeople]);
+  }, [enforced, permissions.canCreateEditAssets]);
+
+  const visibleNavPeople = React.useMemo(() => {
+    if (enforced && !permissions.canViewPeople) return [];
+    if (!enforced) return data.navPeople;
+    return data.navPeople.map((group) => ({
+      ...group,
+      items: group.items?.filter(
+        (sub) => !sub.permissionKey || permissions[sub.permissionKey]
+      ),
+    }));
+  }, [enforced, permissions]);
+
+  const canImportData =
+    !enforced ||
+    permissions.canCreateEditAssets ||
+    permissions.canManagePeople ||
+    permissions.canManageSettings;
 
   const visibleSettings = React.useMemo(() => {
     if (!enforced) return data.navSetting;
@@ -98,6 +122,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavProjects projects={data.dashboard} />
         <NavMain items={visibleNavAssets} />
         {visibleProjects.length > 0 && <NavProjects projects={visibleProjects} />}
+        {visibleNavPeople.length > 0 && <NavMain items={visibleNavPeople} />}
+        {canImportData && <NavProjects projects={data.importNav} />}
         {(!enforced || permissions.canViewReports) && (
           <NavMain items={data.navReport} />
         )}

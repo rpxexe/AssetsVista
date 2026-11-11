@@ -47,6 +47,7 @@ interface AssetCheckinDialogProps {
   assetTag: string;
   assetName: string;
   assignedToName?: string;
+  trigger?: React.ReactNode;
 }
 
 export function AssetCheckinDialog({
@@ -54,6 +55,7 @@ export function AssetCheckinDialog({
   assetTag,
   assetName,
   assignedToName,
+  trigger,
 }: AssetCheckinDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,6 +87,7 @@ export function AssetCheckinDialog({
 
       const keysToInvalidate = [
         ["assets"],
+        ["asset", assetId],
         ["counttotals"],
         ["needs-attention"],
         ["acceptances"],
@@ -92,6 +95,7 @@ export function AssetCheckinDialog({
         ["calendar-events"],
         ["dashboard-summary"],
         ["status"],
+        ["asset-sidebar-counts"],
       ];
       keysToInvalidate.forEach((key) =>
         queryClient.invalidateQueries({ queryKey: key })
@@ -114,14 +118,16 @@ export function AssetCheckinDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          size="sm"
-          variant="outline"
-          className="border-green-600 text-green-700 hover:bg-green-50 dark:hover:bg-green-950 flex items-center gap-1 h-8"
-        >
-          <LogIn className="h-3.5 w-3.5" />
-          Check In
-        </Button>
+        {trigger || (
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-green-600 text-green-700 hover:bg-green-50 dark:hover:bg-green-950 flex items-center gap-1 h-8"
+          >
+            <LogIn className="h-3.5 w-3.5" />
+            Check In
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[450px]">
         <DialogHeader>
