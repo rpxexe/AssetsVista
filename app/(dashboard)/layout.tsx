@@ -2,6 +2,8 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { CommandDialogForm } from "@/components/Form";
 import { ModeToggle } from "@/components/ModeToggle";
 import { NavigationMenuHeader } from "@/components/navigation";
+import { AlertBellMenu } from "@/components/dashboard/AlertBellMenu";
+import { Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -106,6 +108,18 @@ export default function DashboardLayout({
                       <p>Components</p>
                     </TooltipContent>
                   </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link href="/people">
+                        <Button className="p-3" variant="outline">
+                          <Users />
+                        </Button>
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>People</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </TooltipProvider>
               </div>
               <div className="w-1/3 flex justify-center items-center">
@@ -113,13 +127,13 @@ export default function DashboardLayout({
               </div>
               <div className="w-1/3 flex justify-evenly items-center">
                 <NavigationMenuHeader />
-
+                <AlertBellMenu />
                 <ModeToggle />
               </div>
             </div>
           </header>
           <hr />
-          <main className="font-poppins pt-2 text-sidebar-foreground">
+          <main className="font-sans pt-2 text-sidebar-foreground">
             {children}
           </main>
           <hr />

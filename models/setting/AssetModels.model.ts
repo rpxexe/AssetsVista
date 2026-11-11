@@ -9,6 +9,7 @@ export interface Assetmodel extends Document {
   assets?: number;
   category: mongoose.Schema.Types.ObjectId; 
   eol_rate: number;
+  min_amt?: number;
   image?: string;
 }
 
@@ -23,6 +24,7 @@ const AssetModelSchema: Schema<Assetmodel> = new Schema(
       required: [true, "Category is required"],
     },
     eol_rate: { type: Number },
+    min_amt: { type: Number, default: 0, min: 0 },
     image: { type: String, trim: true },
   },
   {

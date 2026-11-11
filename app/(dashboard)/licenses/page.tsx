@@ -1,9 +1,10 @@
 "use client";
 
+import React, { Suspense } from "react";
 import LicenseForm from "@/components/forms/Licenses/LicenseForm";
 import { LicenseTable } from "@/components/tables/licenses";
 
-import { FileChartPie } from "lucide-react";
+import { FileChartPie, Loader2 } from "lucide-react";
 
 const Licenses = () => {
   return (
@@ -17,7 +18,15 @@ const Licenses = () => {
       </div>
       <div className="min-h-min grid grid-cols-1 md:grid-cols-1 gap-4 auto-rows-min">
         <div className="h-full">
-          <LicenseTable />
+          <Suspense
+            fallback={
+              <div className="w-full flex items-center justify-center p-8">
+                <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
+              </div>
+            }
+          >
+            <LicenseTable />
+          </Suspense>
         </div>
       </div>
     </div>

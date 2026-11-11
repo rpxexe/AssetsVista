@@ -22,19 +22,36 @@ export async function GET() {
     const scope = { userId: workspaceId };
     const [
       totalAssets,
-      totalLicenses,
-      totalAccessories,
-      totalConsumables,
-      totalComponents,
+      licenseSeatsAgg,
+      accessoryQtyAgg,
+      consumableQtyAgg,
+      componentQtyAgg,
       totalPeople,
     ] = await Promise.all([
       AssetModel.countDocuments(scope),
-      LicenseModel.countDocuments(scope),
-      AccessoriesModel.countDocuments(scope),
-      ConsumableModel.countDocuments(scope),
-      ComponentModel.countDocuments(scope),
+      LicenseModel.aggregate([
+        { $match: scope },
+        { $group: { _id: null, total: { $sum: { $ifNull: ["$seats", 1] } } } },
+      ]),
+      AccessoriesModel.aggregate([
+        { $match: scope },
+        { $group: { _id: null, total: { $sum: { $ifNull: ["$qty", 0] } } } },
+      ]),
+      ConsumableModel.aggregate([
+        { $match: scope },
+        { $group: { _id: null, total: { $sum: { $ifNull: ["$qty", 0] } } } },
+      ]),
+      ComponentModel.aggregate([
+        { $match: scope },
+        { $group: { _id: null, total: { $sum: { $ifNull: ["$qty", 0] } } } },
+      ]),
       PeopleModel.countDocuments(scope),
     ]);
+
+    const totalLicenses = Number(licenseSeatsAgg[0]?.total ?? 0);
+    const totalAccessories = Number(accessoryQtyAgg[0]?.total ?? 0);
+    const totalConsumables = Number(consumableQtyAgg[0]?.total ?? 0);
+    const totalComponents = Number(componentQtyAgg[0]?.total ?? 0);
 
     return NextResponse.json(
       {
@@ -52,7 +69,7 @@ export async function GET() {
       {
         status: 200,
         headers: {
-          "Cache-Control": "private, max-age=10, stale-while-revalidate=30",
+          "Cache-Control": "private, max-age=15, stale-while-revalidate=45",
         },
       }
     );

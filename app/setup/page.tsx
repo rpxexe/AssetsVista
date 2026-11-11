@@ -13,7 +13,7 @@ export default function SetupPage() {
           <Link href="/admin" className="flex items-center gap-2.5">
             <Cog className="h-8 w-8 animate-spin-slow text-blue-600" strokeWidth={2.5} />
             <div>
-              <h1 className="text-xl font-bold tracking-tight font-poppins">
+              <h1 className="text-xl font-bold tracking-tight font-sans">
                 AssetsVista Setup Wizard
               </h1>
               <p className="text-xs text-muted-foreground">

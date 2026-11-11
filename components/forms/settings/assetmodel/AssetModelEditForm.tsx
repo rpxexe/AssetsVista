@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import CategoryBox from "@/components/dropDowns/category.dropdown";
 import { ImageUploadField } from "@/components/ImageUploadField";
 
@@ -47,6 +46,7 @@ const formSchema = z.object({
   model_no: z.string().nonempty({
     message: "Model Number cannot be empty",
   }),
+  min_amt: z.number().min(0).optional(),
   image: z.string().optional(),
 });
 
@@ -65,6 +65,7 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
       name: "",
       model_no: "",
       category: "",
+      min_amt: 0,
       image: "",
     },
   });
@@ -89,6 +90,7 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
         name: assetModelData.name,
         model_no: assetModelData.model_no,
         category: assetModelData.category?.name || "",
+        min_amt: Number(assetModelData.min_amt) || 0,
         image: assetModelData.image || "",
       });
     }
@@ -100,6 +102,7 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
         name: values.name,
         model_no: values.model_no,
         categoryName: values.category,
+        min_amt: Number(values.min_amt) || 0,
         image: values.image ?? "",
       });
 
@@ -133,8 +136,7 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
           <Edit size={20} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl">Update Asset Model</DialogTitle>
           </DialogHeader>
@@ -185,6 +187,25 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
               />
               <FormField
                 control={form.control}
+                name="min_amt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Min. Stock Alert Quantity</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="0"
+                        type="number"
+                        min={0}
+                        value={field.value ?? 0}
+                        onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="image"
                 render={({ field }) => (
                   <FormItem>
@@ -216,7 +237,6 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
               </DialogFooter>
             </form>
           </Form>
-        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

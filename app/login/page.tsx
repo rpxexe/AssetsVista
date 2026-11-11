@@ -18,12 +18,12 @@ export default function Home() {
                 className="animate-spin-slow -mt-3"
                 strokeWidth={2.7}
               />
-              <h3 className=" font-extrabold md:text-[4.5rem] md:flex-row flex-col text-4xl font-poppins">
+              <h3 className=" font-extrabold md:text-[4.5rem] md:flex-row flex-col text-4xl font-sans">
                 AssetsVista
               </h3>
             </div>
             <div className="flex justify-center mb-[30px] mt-5 md:mt-2 md:px-32">
-              <p className="text-center font-semibold font-poppins">
+              <p className="text-center font-semibold font-sans">
                 {" "}
                 It is an open source software. Transparency, security and
                 oversight is at the heart of everything we do. No vendor lock-in

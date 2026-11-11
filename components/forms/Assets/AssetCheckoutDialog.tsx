@@ -100,7 +100,19 @@ export function AssetCheckoutDialog({
         description: response.data.message || `${assetTag} checked out successfully.`,
       });
 
-      queryClient.invalidateQueries({ queryKey: ["assets"] });
+      const keysToInvalidate = [
+        ["assets"],
+        ["counttotals"],
+        ["needs-attention"],
+        ["acceptances"],
+        ["dashboard-recent-activity"],
+        ["calendar-events"],
+        ["dashboard-summary"],
+        ["status"],
+      ];
+      keysToInvalidate.forEach((key) =>
+        queryClient.invalidateQueries({ queryKey: key })
+      );
       setOpen(false);
       form.reset();
     } catch (err: any) {

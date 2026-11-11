@@ -28,7 +28,6 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import CompanyBox from "@/components/dropDowns/company.dropdown";
 import LocationBox from "@/components/dropDowns/location.dropdown";
@@ -118,8 +117,7 @@ const DepartmentForm = () => {
           Add Department
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl">Create Department</DialogTitle>
           </DialogHeader>
@@ -212,7 +210,6 @@ const DepartmentForm = () => {
               </DialogFooter>
             </form>
           </Form>
-        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

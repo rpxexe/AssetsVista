@@ -29,7 +29,6 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ImageUploadField } from "@/components/ImageUploadField";
@@ -147,8 +146,7 @@ const ManufacturerEditForm: React.FC<EditProps> = ({ id }) => {
           <Edit size={20} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl">Update Manufacturer</DialogTitle>
           </DialogHeader>
@@ -284,7 +282,6 @@ const ManufacturerEditForm: React.FC<EditProps> = ({ id }) => {
               </DialogFooter>
             </form>
           </Form>
-        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

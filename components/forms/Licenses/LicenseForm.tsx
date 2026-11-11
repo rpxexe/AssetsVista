@@ -40,10 +40,10 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "../../ui/button";
 import { Calendar } from "../../ui/calendar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { CategoryBox } from "@/components/dropDowns/category.dropdown";
 import { useQueryClient } from "@tanstack/react-query";
 import { ImageUploadField } from "@/components/ImageUploadField";
+import { CreateParamTrigger } from "@/components/CreateParamTrigger";
 const formSchema = z.object({
   name: z
     .string()
@@ -91,6 +91,7 @@ const formSchema = z.object({
   purchase_cost: z.number({
     required_error: "Purchase Cost is required",
   }),
+  min_amt: z.number().min(0).optional(),
   image: z.string().optional(),
 });
 
@@ -112,6 +113,7 @@ const LicenseForm = () => {
       license_to_name: "",
       license_to_email: "",
       seats: 0,
+      min_amt: 0,
       expiry_date: new Date(),
       order_number: "",
       purchase_date: new Date(),
@@ -136,6 +138,7 @@ const LicenseForm = () => {
         license_to_name:values.license_to_name,
         license_to_email:values.license_to_email,
         seats:values.seats,
+        min_amt: Number(values.min_amt) || 0,
         expiry_date:values.expiry_date,
         order_number:values.order_number,
         purchase_date:values.purchase_date,
@@ -155,6 +158,8 @@ const LicenseForm = () => {
       form.reset();
       queryClient.invalidateQueries({ queryKey: ["licenses"] });
       queryClient.invalidateQueries({ queryKey: ["counttotals"] });
+      queryClient.invalidateQueries({ queryKey: ["needs-attention"] });
+      queryClient.invalidateQueries({ queryKey: ["low-stock"] });
       setOpen(false);
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
@@ -170,14 +175,14 @@ const LicenseForm = () => {
   };
   return (
     <Dialog open={open} onOpenChange={setOpen}>
+      <CreateParamTrigger onCreate={() => setOpen(true)} />
       <DialogTrigger asChild>
         <Button variant="outline" size="default">
           <PlusIcon className="size-4" aria-hidden="true" />
           Add License
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
+      <DialogContent className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl">Create License</DialogTitle>
           </DialogHeader>
@@ -367,7 +372,7 @@ const LicenseForm = () => {
                               <Button
                                 variant={"outline"}
                                 className={cn(
-                                  "w-[240px] pl-3 text-left font-normal",
+                                  "w-full pl-3 text-left font-normal",
                                   !field.value && "text-muted-foreground"
                                 )}
                               >
@@ -417,7 +422,7 @@ const LicenseForm = () => {
                               <Button
                                 variant={"outline"}
                                 className={cn(
-                                  "w-[240px] pl-3 text-left font-normal",
+                                  "w-full pl-3 text-left font-normal",
                                   !field.value && "text-muted-foreground"
                                 )}
                               >
@@ -465,7 +470,7 @@ const LicenseForm = () => {
                               <Button
                                 variant={"outline"}
                                 className={cn(
-                                  "w-[240px] pl-3 text-left font-normal",
+                                  "w-full pl-3 text-left font-normal",
                                   !field.value && "text-muted-foreground"
                                 )}
                               >
@@ -549,6 +554,26 @@ const LicenseForm = () => {
 
               <FormField
                 control={form.control}
+                name="min_amt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Min. Seat Alert Threshold</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="0"
+                        type="number"
+                        min={0}
+                        value={field.value ?? 0}
+                        onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="image"
                 render={({ field }) => (
                   <FormItem>
@@ -584,7 +609,6 @@ const LicenseForm = () => {
               </DialogFooter>
             </form>
           </Form>
-        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

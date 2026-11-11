@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import PeopleForm from "@/components/forms/People/PeopleForm";
 import { PeopleTable } from "@/components/tables/peoples";
 import { UserRolesTable } from "@/components/people/UserRolesTable";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ROLE_METADATA } from "@/lib/rbac";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, Users } from "lucide-react";
+import { Loader2, ShieldCheck, Users } from "lucide-react";
 
 const PeoplePage = () => {
   const [activeTab, setActiveTab] = useState<"directory" | "roles">("directory");
@@ -68,7 +68,19 @@ const PeoplePage = () => {
 
       {/* Tab Content */}
       <div className="min-h-min grid grid-cols-1 gap-4 auto-rows-min">
-        {activeTab === "directory" ? <PeopleTable /> : <UserRolesTable />}
+        {activeTab === "directory" ? (
+          <Suspense
+            fallback={
+              <div className="w-full flex items-center justify-center p-8">
+                <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
+              </div>
+            }
+          >
+            <PeopleTable />
+          </Suspense>
+        ) : (
+          <UserRolesTable />
+        )}
       </div>
     </div>
   );

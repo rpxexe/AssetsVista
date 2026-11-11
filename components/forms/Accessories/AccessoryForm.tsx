@@ -30,7 +30,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import CategoryBox from "@/components/dropDowns/category.dropdown";
@@ -39,6 +38,7 @@ import ManufacturerBox from "@/components/dropDowns/manufacturer.dropdown";
 import SupplierBox from "@/components/dropDowns/supplier.dropdown";
 import LocationBox from "@/components/dropDowns/location.dropdown";
 import { ImageUploadField } from "@/components/ImageUploadField";
+import { CreateParamTrigger } from "@/components/CreateParamTrigger";
 
 const accessorySchema = z.object({
   name: z.string().min(1, "Accessory name is required"),
@@ -108,6 +108,7 @@ export function AccessoryForm() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
+      <CreateParamTrigger onCreate={() => setOpen(true)} />
       <DialogTrigger asChild>
         <Button className="flex items-center gap-2">
           <PlusIcon className="h-4 w-4" />
@@ -127,8 +128,8 @@ export function AccessoryForm() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <ScrollArea className="max-h-[60vh] pr-3">
-              <div className="space-y-3">
+              <div className="max-h-[60vh] overflow-y-auto pr-2">
+                <div className="space-y-3">
                 <FormField
                   control={form.control}
                   name="name"
@@ -328,10 +329,10 @@ export function AccessoryForm() {
                     </FormItem>
                   )}
                 />
+                </div>
               </div>
-            </ScrollArea>
 
-            <DialogFooter>
+              <DialogFooter>
               <Button
                 type="button"
                 variant="outline"

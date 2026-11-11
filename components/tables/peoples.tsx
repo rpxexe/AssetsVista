@@ -15,6 +15,7 @@ import {
 import { ChevronDown, Eye, Loader2, Trash } from "lucide-react";
 import * as React from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -96,6 +97,9 @@ export function PeopleTable() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { permissions } = usePermissions();
+  const searchParams = useSearchParams();
+  const endDateWithin = searchParams ? searchParams.get("end_date_within") : null;
+  const withAssignments = searchParams ? searchParams.get("with_assignments") : null;
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -111,9 +115,13 @@ export function PeopleTable() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["people"],
+    queryKey: ["people", endDateWithin, withAssignments],
     queryFn: async () => {
-      const response = await axios.get("/api/core/people");
+      const params = new URLSearchParams();
+      if (endDateWithin) params.set("end_date_within", endDateWithin);
+      if (withAssignments) params.set("with_assignments", withAssignments);
+      const qs = params.toString();
+      const response = await axios.get(qs ? `/api/core/people?${qs}` : "/api/core/people");
       return response.data.data;
     },
   });
@@ -362,15 +370,32 @@ export function PeopleTable() {
 
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between py-4 gap-2">
-        <Input
-          placeholder="Filter by name..."
-          value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("name")?.setFilterValue(event.target.value)
-          }
-          className="max-w-sm"
-        />
+      <div className="flex flex-wrap items-center justify-between py-4 gap-2">
+        <div className="flex flex-wrap items-center gap-2 flex-1">
+          <Input
+            placeholder="Filter by name..."
+            value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+            onChange={(event) =>
+              table.getColumn("name")?.setFilterValue(event.target.value)
+            }
+            className="max-w-sm"
+          />
+          {(endDateWithin || withAssignments) && (
+            <div className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-2.5 py-1 text-xs">
+              <span className="font-medium text-foreground">
+                Offboarding soon
+                {endDateWithin ? ` (${endDateWithin}d)` : ""}
+                {withAssignments ? " • with assets" : ""}
+              </span>
+              <Link
+                href="/people"
+                className="text-muted-foreground hover:text-foreground underline ml-1"
+              >
+                Reset
+              </Link>
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           <ExportButton

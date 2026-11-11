@@ -30,7 +30,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import CategoryBox from "@/components/dropDowns/category.dropdown";
@@ -173,7 +172,7 @@ export function ConsumableEditForm({ id }: ConsumableEditFormProps) {
         ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <ScrollArea className="max-h-[60vh] pr-3">
+              <div className="max-h-[60vh] overflow-y-auto pr-2">
                 <div className="space-y-3">
                   <FormField
                     control={form.control}
@@ -390,7 +389,7 @@ export function ConsumableEditForm({ id }: ConsumableEditFormProps) {
                     )}
                   />
                 </div>
-              </ScrollArea>
+              </div>
 
               <DialogFooter>
                 <Button

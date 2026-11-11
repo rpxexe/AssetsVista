@@ -27,7 +27,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import CompanyBox from "@/components/dropDowns/company.dropdown";
 import DepartmentBox from "@/components/dropDowns/department.dropdown";
@@ -46,6 +45,8 @@ const peopleSchema = z.object({
   location: z.string().optional(),
   company: z.string().optional(),
   notes: z.string().optional(),
+  start_date: z.string().optional(),
+  end_date: z.string().optional(),
   image: z.string().optional(),
 });
 
@@ -100,6 +101,8 @@ export function PeopleEditForm({ id }: PeopleEditFormProps) {
             location: p.location?._id || p.location?.name || "",
             company: p.company?._id || p.company?.name || "",
             notes: p.notes || "",
+            start_date: p.start_date ? new Date(p.start_date).toISOString().slice(0, 10) : "",
+            end_date: p.end_date ? new Date(p.end_date).toISOString().slice(0, 10) : "",
             image: p.image || "",
           });
         }
@@ -164,7 +167,7 @@ export function PeopleEditForm({ id }: PeopleEditFormProps) {
         ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <ScrollArea className="max-h-[60vh] pr-3">
+              <div className="max-h-[60vh] overflow-y-auto pr-2">
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <FormField
@@ -311,6 +314,35 @@ export function PeopleEditForm({ id }: PeopleEditFormProps) {
                     />
                   </div>
 
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField
+                      control={form.control}
+                      name="start_date"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Start Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="end_date"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>End / Offboarding Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
                   <FormField
                     control={form.control}
                     name="notes"
@@ -344,7 +376,7 @@ export function PeopleEditForm({ id }: PeopleEditFormProps) {
                     )}
                   />
                 </div>
-              </ScrollArea>
+              </div>
 
               <DialogFooter>
                 <Button

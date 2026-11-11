@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { name, model_no, categoryName, category, eol_rate, image } = body;
+    const { name, model_no, categoryName, category, eol_rate, min_amt, image } = body;
 
     const catParam = category || categoryName;
     let categoryExists = null;
@@ -57,6 +57,7 @@ export async function POST(req: Request) {
       model_no,
       category: categoryExists._id,
       eol_rate: eol_rate !== undefined ? Number(eol_rate) : undefined,
+      min_amt: min_amt !== undefined ? Number(min_amt) : 0,
       image: image || undefined,
     });
 

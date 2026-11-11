@@ -26,8 +26,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-
 import LocationBox from "@/components/dropDowns/location.dropdown";
 import CompanyBox from "@/components/dropDowns/company.dropdown";
 
@@ -140,8 +138,7 @@ const DepartmentEditForm: React.FC<EditProps> = ({ id }) => {
           <Edit size={20} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl">Update Department</DialogTitle>
           </DialogHeader>
@@ -229,7 +226,6 @@ const DepartmentEditForm: React.FC<EditProps> = ({ id }) => {
               </DialogFooter>
             </form>
           </Form>
-        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

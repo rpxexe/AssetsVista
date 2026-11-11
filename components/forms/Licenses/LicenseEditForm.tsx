@@ -29,7 +29,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Popover,
   PopoverContent,
@@ -69,6 +68,7 @@ const formSchema = z.object({
     required_error: "Termination Date should not be empty",
   }),
   purchase_cost: z.number({ required_error: "Purchase Cost is required" }),
+  min_amt: z.number().min(0).optional(),
   image: z.string().optional(),
 });
 
@@ -93,6 +93,7 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
       license_to_name: "",
       license_to_email: "",
       seats: 0,
+      min_amt: 0,
       order_number: "",
       purchase_date: new Date(),
       expiry_date: new Date(),
@@ -130,6 +131,7 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
         license_to_email: licenseData.license_to_email,
         purchase_cost: licenseData.purchase_cost,
         seats: Number(licenseData.seats),
+        min_amt: Number(licenseData.min_amt) || 0,
         order_number: licenseData.order_number,
         purchase_date: new Date(licenseData.purchase_date),
         expiry_date: new Date(licenseData.expiry_date),
@@ -156,6 +158,7 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
         expiry_date: values.expiry_date,
         termination_date: values.termination_date,
         seats: Number(values.seats),
+        min_amt: Number(values.min_amt) || 0,
         purchase_cost: values.purchase_cost,
         image: values.image ?? "",
       });
@@ -190,8 +193,7 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
           <Edit size={20} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
+      <DialogContent className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl">Update License</DialogTitle>
           </DialogHeader>
@@ -375,7 +377,7 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
                               <Button
                                 variant={"outline"}
                                 className={cn(
-                                  "w-[240px] pl-3 text-left font-normal",
+                                  "w-full pl-3 text-left font-normal",
                                   !field.value && "text-muted-foreground"
                                 )}
                               >
@@ -417,7 +419,7 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
                               <Button
                                 variant={"outline"}
                                 className={cn(
-                                  "w-[240px] pl-3 text-left font-normal",
+                                  "w-full pl-3 text-left font-normal",
                                   !field.value && "text-muted-foreground"
                                 )}
                               >
@@ -457,7 +459,7 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
                               <Button
                                 variant={"outline"}
                                 className={cn(
-                                  "w-[240px] pl-3 text-left font-normal",
+                                  "w-full pl-3 text-left font-normal",
                                   !field.value && "text-muted-foreground"
                                 )}
                               >
@@ -530,6 +532,25 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
               </div>
               <FormField
                 control={form.control}
+                name="min_amt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Min. Seat Alert Threshold</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="0"
+                        type="number"
+                        min={0}
+                        value={field.value ?? 0}
+                        onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="image"
                 render={({ field }) => (
                   <FormItem>
@@ -561,7 +582,6 @@ const LicenseEditForm: React.FC<EditProps> = ({ id }) => {
               </DialogFooter>
             </form>
           </Form>
-        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

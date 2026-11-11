@@ -41,8 +41,8 @@ import { z } from "zod";
 import { Button } from "../../ui/button";
 import { Calendar } from "../../ui/calendar";
 import { useQueryClient } from "@tanstack/react-query";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { ImageUploadField } from "@/components/ImageUploadField";
+import { CreateParamTrigger } from "@/components/CreateParamTrigger";
 const formSchema = z.object({
   company: z.string().nonempty({
     message: "Company can't be empty",
@@ -185,14 +185,14 @@ const AssetForm = () => {
   };
   return (
     <Dialog open={open} onOpenChange={setOpen}>
+      <CreateParamTrigger onCreate={() => setOpen(true)} />
       <DialogTrigger asChild>
         <Button variant="outline" size="default">
           <PlusIcon className="size-4" aria-hidden="true" />
           Add Asset
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
+      <DialogContent className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl">Create Asset</DialogTitle>
           </DialogHeader>
@@ -460,7 +460,7 @@ const AssetForm = () => {
                               <Button
                                 variant={"outline"}
                                 className={cn(
-                                  "w-[240px] pl-3 text-left font-normal",
+                                  "w-full pl-3 text-left font-normal",
                                   !field.value && "text-muted-foreground"
                                 )}
                               >
@@ -508,7 +508,7 @@ const AssetForm = () => {
                               <Button
                                 variant={"outline"}
                                 className={cn(
-                                  "w-[240px] pl-3 text-left font-normal",
+                                  "w-full pl-3 text-left font-normal",
                                   !field.value && "text-muted-foreground"
                                 )}
                               >
@@ -582,7 +582,6 @@ const AssetForm = () => {
               </DialogFooter>
             </form>
           </Form>
-        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

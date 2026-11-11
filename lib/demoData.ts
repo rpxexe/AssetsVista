@@ -4,9 +4,12 @@ import { ensureMultiTenantIndexes } from "@/lib/userIndexes";
 import { AccessoriesModel } from "@/models/Accessories.model";
 import { ActionLogModel } from "@/models/ActionLog.model";
 import { AssetModel } from "@/models/Assets.model";
+import { CheckoutAcceptanceModel } from "@/models/CheckoutAcceptance.model";
+import { CheckoutRequestModel } from "@/models/CheckoutRequest.model";
 import { ComponentModel } from "@/models/Components.model";
 import { ConsumableModel } from "@/models/Consumables.model";
 import { LicenseModel } from "@/models/Licenses.model";
+import { MaintenanceModel } from "@/models/Maintenance.model";
 import { PeopleModel } from "@/models/Peoples.model";
 import { SettingsModel } from "@/models/Settings.model";
 import { AssetModel_Model } from "@/models/setting/AssetModels.model";
@@ -33,6 +36,9 @@ export interface DemoSeedSummary {
   accessories: number;
   components: number;
   consumables: number;
+  maintenances: number;
+  acceptances: number;
+  requests: number;
   actionLogs: number;
 }
 
@@ -291,6 +297,8 @@ export async function seedWorkspaceDemoData(workspaceId: string): Promise<DemoSe
       department: deptDesign._id,
       location: austinOps._id,
       company: nova._id,
+      start_date: monthsAgo(12),
+      end_date: daysFromNow(3), // Offboarding soon -> triggers calendar & Needs Attention
     },
     {
       username: "david.chen",
@@ -304,6 +312,8 @@ export async function seedWorkspaceDemoData(workspaceId: string): Promise<DemoSe
       department: deptOps._id,
       location: sfHq._id,
       company: acme._id,
+      start_date: monthsAgo(18),
+      end_date: daysFromNow(14), // Offboarding soon with assigned AST-1006
     },
   ];
 
@@ -383,7 +393,7 @@ export async function seedWorkspaceDemoData(workspaceId: string): Promise<DemoSe
       eol_date: daysFromNow(900),
       purchase_cost: 1920,
       last_audit_date: monthsAgo(2),
-      next_audit_date: daysFromNow(300),
+      next_audit_date: daysFromNow(0), // Audit due today -> surfaces in Today & Up Next
     },
     {
       asset_tag: "AST-1004",
@@ -450,6 +460,26 @@ export async function seedWorkspaceDemoData(workspaceId: string): Promise<DemoSe
       next_audit_date: daysFromNow(180),
       notes: "USB-C port board scheduled for AppleCare swap",
     },
+    {
+      asset_tag: "AST-1007",
+      serial_number: "SN-LAT-54207",
+      asset_name: "Dell Latitude 5420 Archive Unit",
+      company: acme._id,
+      asset_model: modelLatitude._id,
+      status: statusReady._id,
+      location: austinOps._id,
+      supplier: supInsight._id,
+      manufacturer: mfgDell._id,
+      department: deptOps._id,
+      warranty: 2,
+      order_number: "PO-2022-041",
+      purchase_date: monthsAgo(30),
+      eol_date: daysFromNow(-20), // Past EOL -> triggers Needs Attention & Calendar
+      purchase_cost: 1450,
+      last_audit_date: monthsAgo(4),
+      next_audit_date: daysFromNow(60),
+      notes: "Legacy field workstation past lifecycle EOL",
+    },
   ];
 
   const assetDocs = await Promise.all(
@@ -504,6 +534,7 @@ export async function seedWorkspaceDemoData(workspaceId: string): Promise<DemoSe
       supplier: supInsight._id,
       manufacturer: mfgApple._id,
       seats: 10,
+      min_amt: 5, // Low available seats alert
       seats_available: 2,
       license_to_name: "Elena Rostova",
       license_to_email: "elena.rostova@novacloud.example.com",
@@ -656,7 +687,114 @@ export async function seedWorkspaceDemoData(workspaceId: string): Promise<DemoSe
     );
   }
 
-  // 10. Activity Audit Logs (create only if this workspace has zero logs yet)
+  // 10. Maintenances, Acceptances & Requests (idempotent workspace bootstrap)
+  const [existingMaintCount, existingAccCount, existingReqCount] = await Promise.all([
+    MaintenanceModel.countDocuments({ userId: workspaceId }),
+    CheckoutAcceptanceModel.countDocuments({ userId: workspaceId }),
+    CheckoutRequestModel.countDocuments({ userId: workspaceId }),
+  ]);
+
+  let createdMaintenances = 0;
+  if (existingMaintCount === 0 && assetDocs.length >= 6) {
+    await MaintenanceModel.insertMany([
+      {
+        userId: workspaceId,
+        asset: assetDocs[5]._id,
+        supplier: supCdw._id,
+        maintenance_type: "Repair",
+        title: "AppleCare USB-C port board replacement",
+        is_warranty: true,
+        start_date: daysFromNow(-10),
+        expected_completion_date: daysFromNow(-3), // Overdue maintenance alert
+        cost: 380,
+        notes: "Awaiting board swap verification",
+      },
+      {
+        userId: workspaceId,
+        asset: assetDocs[1]._id,
+        supplier: supInsight._id,
+        maintenance_type: "Maintenance",
+        title: "BIOS security update & thermal inspection",
+        is_warranty: false,
+        start_date: daysFromNow(0), // Shows in Today & Up Next
+        expected_completion_date: daysFromNow(4),
+        cost: 120,
+        notes: "Scheduled preventive service",
+      },
+    ]);
+    createdMaintenances = 2;
+  }
+
+  let createdAcceptances = 0;
+  if (existingAccCount === 0 && assetDocs.length >= 2) {
+    await CheckoutAcceptanceModel.insertMany([
+      {
+        userId: workspaceId,
+        checkoutable_type: "Asset",
+        checkoutable_id: assetDocs[0]._id,
+        item_name: assetDocs[0].asset_name || "MacBook Pro 16",
+        item_tag: assetDocs[0].asset_tag,
+        assigned_to: maya._id,
+        assigned_name: maya.name,
+        status: "pending",
+        note: "Awaiting employee hardware receipt signature",
+      },
+      {
+        userId: workspaceId,
+        checkoutable_type: "Asset",
+        checkoutable_id: assetDocs[1]._id,
+        item_name: assetDocs[1].asset_name || "Dell Latitude 7440",
+        item_tag: assetDocs[1].asset_tag,
+        assigned_to: marcus._id,
+        assigned_name: marcus.name,
+        status: "accepted",
+        signature: "Marcus Vance",
+        accepted_at: monthsAgo(8),
+      },
+    ]);
+    createdAcceptances = 2;
+  }
+
+  const createdAccessoryDocs = await AccessoriesModel.find({ userId: workspaceId })
+    .select("name")
+    .lean<Array<{ _id: any; name: string }>>();
+
+  let createdRequests = 0;
+  if (existingReqCount === 0 && assetDocs.length >= 3) {
+    const requestSeedDocs: any[] = [
+      {
+        userId: workspaceId,
+        requester: elena._id,
+        requester_name: elena.name,
+        requester_email: elena.email,
+        item_type: "Asset",
+        item_id: assetDocs[2]._id,
+        item_name: assetDocs[2].asset_name || "ThinkPad X1 Carbon Loaner",
+        item_tag: assetDocs[2].asset_tag,
+        quantity: 1,
+        status: "pending",
+        notes: "Loaner unit needed for onsite client workshop",
+      },
+    ];
+    if (createdAccessoryDocs[0]) {
+      requestSeedDocs.push({
+        userId: workspaceId,
+        requester: david._id,
+        requester_name: david.name,
+        requester_email: david.email,
+        item_type: "Accessory",
+        item_id: createdAccessoryDocs[0]._id,
+        item_name: createdAccessoryDocs[0].name,
+        quantity: 1,
+        status: "pending",
+        notes: "Replacement mouse for Austin hub desk",
+      });
+    }
+    await CheckoutRequestModel.insertMany(requestSeedDocs);
+    createdRequests = requestSeedDocs.length;
+  }
+
+  // 11. Activity Audit Logs (create only if this workspace has zero logs yet)
   const existingLogsCount = await ActionLogModel.countDocuments({ userId: workspaceId });
   let createdLogs = 0;
   if (existingLogsCount === 0 && assetDocs.length > 0) {
@@ -679,12 +817,12 @@ export async function seedWorkspaceDemoData(workspaceId: string): Promise<DemoSe
         item_id: assetDocs[1]._id,
         item_type: "Asset" as const,
         item_name: assetDocs[1].asset_name || assetDocs[1].asset_tag,
-        action_type: "checkout" as const,
+        action_type: "accepted" as const,
         target_id: marcus._id,
         target_type: "People" as const,
         target_name: marcus.name,
         admin_name: "System Seeder",
-        notes: "Issued security field laptop",
+        notes: "Signed hardware EULA acceptance",
       },
       {
         userId: workspaceId,
@@ -694,6 +832,15 @@ export async function seedWorkspaceDemoData(workspaceId: string): Promise<DemoSe
         action_type: "audit" as const,
         admin_name: "System Seeder",
         notes: "Physical inventory barcode check verified",
+      },
+      {
+        userId: workspaceId,
+        item_id: assetDocs[5]?._id || assetDocs[0]._id,
+        item_type: "Asset" as const,
+        item_name: (assetDocs[5] || assetDocs[0]).asset_name || (assetDocs[5] || assetDocs[0]).asset_tag,
+        action_type: "maintenance" as const,
+        admin_name: "System Seeder",
+        notes: "Repair: AppleCare USB-C port board replacement",
       },
       {
         userId: workspaceId,
@@ -709,7 +856,7 @@ export async function seedWorkspaceDemoData(workspaceId: string): Promise<DemoSe
     createdLogs = sampleLogs.length;
   }
 
-  // 11. Ensure Settings exists for workspace if none exists yet
+  // 12. Ensure Settings exists for workspace if none exists yet
   await SettingsModel.findOneAndUpdate(
     { userId: workspaceId },
     {
@@ -722,6 +869,9 @@ export async function seedWorkspaceDemoData(workspaceId: string): Promise<DemoSe
         auto_increment_prefix: "AST-",
         auto_increment_assets: true,
         audit_interval_months: 12,
+        alert_threshold: 5,
+        alert_interval: 30,
+        show_alerts_in_menu: true,
         setup_completed: true,
         setup_completed_at: new Date(),
         setup_completed_by: "Demo Workspace",
@@ -747,6 +897,9 @@ export async function seedWorkspaceDemoData(workspaceId: string): Promise<DemoSe
     accessories: accessorySpecs.length,
     components: componentSpecs.length,
     consumables: consumableSpecs.length,
+    maintenances: createdMaintenances,
+    acceptances: createdAcceptances,
+    requests: createdRequests,
     actionLogs: createdLogs,
   };
 }
