@@ -1,6 +1,6 @@
 import { apiErrorResponse } from "@/lib/apiError";
 import dbconnect from "@/lib/dbconnect";
-import { getAuthenticatedActor, getWorkspaceUserId } from "@/lib/serverAuth";
+import { getAuthenticatedActor } from "@/lib/serverAuth";
 import { ActionLogModel } from "@/models/ActionLog.model";
 import { AssetModel } from "@/models/Assets.model";
 import { CheckoutAcceptanceModel } from "@/models/CheckoutAcceptance.model";
@@ -10,8 +10,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
   try {
-    const workspaceId = await getWorkspaceUserId();
-    if (!workspaceId) {
+    const actor = await getAuthenticatedActor();
+    if (!actor) {
       return NextResponse.json(
         { success: false, message: "Authentication required" },
         { status: 401 }
@@ -22,9 +22,19 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status") || "all";
 
-    const filter: Record<string, any> = { userId: workspaceId };
+    const filter: Record<string, any> = { userId: actor.workspaceId };
     if (["pending", "accepted", "declined"].includes(status)) {
       filter.status = status;
+    }
+
+    if (!actor.permissions.canCheckoutCheckin) {
+      if (!actor.dbUser.personId) {
+        return NextResponse.json(
+          { success: true, message: "Acceptances fetched successfully", data: [] },
+          { status: 200 }
+        );
+      }
+      filter.assigned_to = actor.dbUser.personId;
     }
 
     const acceptances = await CheckoutAcceptanceModel.find(filter)
@@ -81,6 +91,17 @@ export async function PATCH(req: NextRequest) {
         { success: false, message: "Acceptance record not found" },
         { status: 404 }
       );
+    }
+
+    if (!actor.permissions.canCheckoutCheckin) {
+      const isRecipient =
+        actor.dbUser.personId && acceptance.assigned_to?.toString() === actor.dbUser.personId;
+      if (!isRecipient) {
+        return NextResponse.json(
+          { success: false, message: "Forbidden: You can only respond to your own acceptances." },
+          { status: 403 }
+        );
+      }
     }
 
     const now = new Date();

@@ -1,62 +1,41 @@
+import dbconnect from "@/lib/dbconnect";
 import { apiErrorResponse } from "@/lib/apiError";
-import { syncUserToDatabase } from "@/lib/syncUser";
-import { currentUser } from "@clerk/nextjs/server";
+import { getAuthenticatedActor } from "@/lib/serverAuth";
+import { PeopleModel } from "@/models/Peoples.model";
 import { NextResponse } from "next/server";
 
-async function handleSync() {
+export async function POST() {
   try {
-    const clerkUser = await currentUser();
-
-    if (!clerkUser) {
+    const actor = await getAuthenticatedActor();
+    if (!actor) {
       return NextResponse.json(
         { success: false, message: "Not authenticated" },
         { status: 401 }
       );
     }
 
-    const primaryEmail =
-      clerkUser.emailAddresses?.find(
-        (e) => e.id === clerkUser.primaryEmailAddressId
-      ) || clerkUser.emailAddresses?.[0];
-
-    const email = primaryEmail?.emailAddress;
-    if (!email) {
-      return NextResponse.json(
-        { success: false, message: "Authenticated user has no email address" },
-        { status: 400 }
-      );
-    }
-
-    const result = await syncUserToDatabase({
-      clerkId: clerkUser.id,
-      email,
-      firstName: clerkUser.firstName,
-      lastName: clerkUser.lastName,
-      username: clerkUser.username,
-      picture: clerkUser.imageUrl,
-      emailVerified: primaryEmail?.verification?.status === "verified",
-    });
+    await dbconnect();
+    const person = actor.dbUser.personId
+      ? await PeopleModel.findById(actor.dbUser.personId).lean()
+      : await PeopleModel.findOne({
+          userId: actor.workspaceId,
+          email: actor.dbUser.email,
+        }).lean();
 
     return NextResponse.json(
       {
         success: true,
-        message: result.isNewUser
-          ? "User saved to database"
-          : "User session synced",
-        data: result,
+        message: "User session active",
+        data: {
+          user: actor.dbUser,
+          person: person || null,
+          isNewUser: false,
+          isNewPerson: false,
+        },
       },
       { status: 200 }
     );
   } catch (error) {
-    return apiErrorResponse(error, "Failed to sync user account with the database.", "Error syncing user to DB:");
+    return apiErrorResponse(error, "Failed to resolve current user.", "User sync error:");
   }
 }
-
-export async function POST() {
-  return handleSync();
-}
-
-export async function GET() {
-  return handleSync();
-}
-

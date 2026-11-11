@@ -14,6 +14,8 @@ import {
   Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionBar } from "@/components/BulkActionBar";
 import {
   Dialog,
   DialogContent,
@@ -37,8 +39,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
 import { useToast } from "@/hooks/use-toast";
 import { getClientErrorMessage } from "@/lib/errorMessages";
+import type { ExportColumnDef } from "@/lib/exportData";
 import type { LowStockItem } from "@/lib/lowInventory";
 
 export function LowInventoryWidget() {
@@ -49,6 +53,7 @@ export function LowInventoryWidget() {
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const bulk = useBulkSelection();
 
   const { data, isLoading } = useQuery<{
     data: LowStockItem[];
@@ -67,6 +72,17 @@ export function LowInventoryWidget() {
 
   const items = data?.data || [];
   const threshold = data?.alertThreshold ?? 0;
+
+  const visibleIds = items.map((item) => item.compositeId);
+  const selectedItems = items.filter((item) => bulk.isSelected(item.compositeId));
+
+  const exportCols: ExportColumnDef<LowStockItem>[] = [
+    { header: "Name", accessor: (r) => r.name },
+    { header: "Category Type", accessor: (r) => r.typeLabel },
+    { header: "Total Qty", accessor: (r) => r.qty },
+    { header: "Min Amount", accessor: (r) => r.min_amt },
+    { header: "Remaining", accessor: (r) => r.remaining },
+  ];
 
   const handleOpenAdjust = (item: LowStockItem) => {
     setAdjustItem(item);
@@ -141,40 +157,69 @@ export function LowInventoryWidget() {
         </div>
 
         {!collapsed && (
-          <div className="mt-3 max-h-[340px] overflow-auto border rounded-xl">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-14">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : items.length === 0 ? (
-              <div className="py-12 px-4 text-center text-xs text-muted-foreground">
-                No low-inventory items right now. Set a Minimum Amount (&gt; 0) on Accessories,
-                Consumables, Components, Asset Models, or Licenses to monitor stock thresholds.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="text-xs">
-                    <TableHead>Name</TableHead>
-                    <TableHead className="text-right w-[90px]">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
-                        }
-                        className="inline-flex items-center gap-1 hover:text-foreground"
-                      >
-                        Remaining
-                        <ArrowUpDown className="h-3 w-3" />
-                      </button>
-                    </TableHead>
-                    <TableHead className="w-[44px]" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item) => (
-                    <TableRow key={item.compositeId} className="text-xs">
-                      <TableCell className="max-w-[180px]">
+          <>
+            <div className="mt-3">
+              <BulkActionBar
+                selectedCount={selectedItems.length}
+                entityLabel="item"
+                onClearSelection={bulk.clear}
+                exportConfig={{
+                  filename: "low-inventory-selected",
+                  sheetName: "Low Inventory",
+                  data: selectedItems,
+                  columns: exportCols,
+                }}
+                actions={[]}
+              />
+            </div>
+            <div className="mt-2 max-h-[340px] overflow-auto border rounded-xl">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-14">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : items.length === 0 ? (
+                <div className="py-12 px-4 text-center text-xs text-muted-foreground">
+                  No low-inventory items right now. Set a Minimum Amount (&gt; 0) on Accessories,
+                  Consumables, Components, Asset Models, or Licenses to monitor stock thresholds.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="text-xs">
+                      <TableHead className="w-8">
+                        <Checkbox
+                          checked={bulk.headerCheckState(visibleIds)}
+                          onCheckedChange={(c) => bulk.toggleAll(visibleIds, !!c)}
+                          aria-label="Select all low-inventory items"
+                        />
+                      </TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead className="text-right w-[90px]">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+                          }
+                          className="inline-flex items-center gap-1 hover:text-foreground"
+                        >
+                          Remaining
+                          <ArrowUpDown className="h-3 w-3" />
+                        </button>
+                      </TableHead>
+                      <TableHead className="w-[44px]" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item) => (
+                      <TableRow key={item.compositeId} className="text-xs">
+                        <TableCell>
+                          <Checkbox
+                            checked={bulk.isSelected(item.compositeId)}
+                            onCheckedChange={(c) => bulk.toggleOne(item.compositeId, !!c)}
+                            aria-label={`Select ${item.name}`}
+                          />
+                        </TableCell>
+                        <TableCell className="max-w-[180px]">
                         <Link href={item.href} className="font-medium hover:underline block truncate">
                           {item.name}
                         </Link>
@@ -203,7 +248,8 @@ export function LowInventoryWidget() {
                 </TableBody>
               </Table>
             )}
-          </div>
+            </div>
+          </>
         )}
       </div>
 

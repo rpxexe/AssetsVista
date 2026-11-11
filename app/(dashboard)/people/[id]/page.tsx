@@ -2,7 +2,7 @@
 
 import React, { use } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { format } from "date-fns";
 import {
@@ -18,11 +18,19 @@ import {
   Mail,
   MapPin,
   Phone,
+  RotateCcw,
   User,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionBar } from "@/components/BulkActionBar";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import { useToast } from "@/hooks/use-toast";
+import { executeBulkAction } from "@/lib/bulkClient";
+import { getClientErrorMessage } from "@/lib/errorMessages";
+import type { ExportColumnDef } from "@/lib/exportData";
 import {
   Table,
   TableBody,
@@ -35,6 +43,7 @@ import PeopleEditForm from "@/components/forms/People/PeopleEditForm";
 import SignOffSheetModal from "@/components/people/SignOffSheetModal";
 import AssetCheckinDialog from "@/components/forms/Assets/AssetCheckinDialog";
 import { ImageThumbnail } from "@/components/ImageThumbnail";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -42,6 +51,10 @@ interface PageProps {
 
 export default function PersonDetailPage({ params }: PageProps) {
   const { id } = use(params);
+  const { permissions } = usePermissions();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const bulk = useBulkSelection();
 
   const {
     data: person,
@@ -70,10 +83,10 @@ export default function PersonDetailPage({ params }: PageProps) {
     return (
       <div className="p-8 text-center space-y-4">
         <p className="text-red-500 font-medium">Could not load person details.</p>
-        <Link href="/people">
+        <Link href={permissions.canViewPeople ? "/people" : "/admin"}>
           <Button variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to People
+            {permissions.canViewPeople ? "Back to People" : "Back to Dashboard"}
           </Button>
         </Link>
       </div>
@@ -86,12 +99,60 @@ export default function PersonDetailPage({ params }: PageProps) {
   const fullName =
     person.name || `${person.first_name || ""} ${person.last_name || ""}`.trim() || "User";
 
+  const selectedAssets = assignedAssets.filter((a: any) => bulk.isSelected(a._id));
+  const selectedLicenses = assignedLicenses.filter((l: any) => bulk.isSelected(l._id));
+  const selectedLogs = activityLogs.filter((log: any) => bulk.isSelected(log._id));
+
+  const assetExportColumns: ExportColumnDef<any>[] = [
+    { header: "Asset Tag", accessor: (a) => a.asset_tag || "-" },
+    { header: "Name", accessor: (a) => a.asset_name || "-" },
+    { header: "Model", accessor: (a) => a.asset_model?.name || "-" },
+    { header: "Serial Number", accessor: (a) => a.serial_number || "-" },
+    { header: "Status", accessor: (a) => a.status?.name || "Deployed" },
+    {
+      header: "Checkout Date",
+      accessor: (a) => (a.checkout_date ? format(new Date(a.checkout_date), "yyyy-MM-dd") : ""),
+    },
+    { header: "Cost ($)", accessor: (a) => Number(a.purchase_cost) || 0 },
+  ];
+
+  const licenseExportColumns: ExportColumnDef<any>[] = [
+    { header: "Software Name", accessor: (l) => l.name || "-" },
+    { header: "Category", accessor: (l) => l.category?.name || "-" },
+    { header: "Manufacturer", accessor: (l) => l.manufacturer?.name || "-" },
+    { header: "License To Email", accessor: (l) => l.license_to_email || person.email || "-" },
+    {
+      header: "Expiry Date",
+      accessor: (l) => (l.expiry_date ? format(new Date(l.expiry_date), "yyyy-MM-dd") : "Never"),
+    },
+  ];
+
+  const historyExportColumns: ExportColumnDef<any>[] = [
+    {
+      header: "Date",
+      accessor: (log) =>
+        log.created_at || log.createdAt
+          ? new Date(log.created_at || log.createdAt).toLocaleString()
+          : "",
+    },
+    { header: "Action", accessor: (log) => log.action_type || "-" },
+    { header: "Item Type", accessor: (log) => log.item_type || "-" },
+    { header: "Item Name", accessor: (log) => log.item_name || log.item_id || "-" },
+    { header: "Actor", accessor: (log) => log.user?.name || log.user?.username || "Admin" },
+    { header: "Notes", accessor: (log) => log.note || "" },
+  ];
+
+  const handlePersonTabChange = (tab: "assets" | "licenses" | "history") => {
+    setActiveTab(tab);
+    bulk.clear();
+  };
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 pt-0">
       {/* Top Navigation & Actions Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 border rounded-[2.5em] p-4 bg-card">
         <div className="flex items-center gap-3">
-          <Link href="/people">
+          <Link href={permissions.canViewPeople ? "/people" : "/admin"}>
             <Button size="icon" variant="ghost" className="rounded-full">
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -126,7 +187,7 @@ export default function PersonDetailPage({ params }: PageProps) {
 
         <div className="flex items-center gap-2">
           <SignOffSheetModal person={person} />
-          <PeopleEditForm id={id} />
+          {permissions.canManagePeople && <PeopleEditForm id={id} />}
         </div>
       </div>
 
@@ -218,7 +279,7 @@ export default function PersonDetailPage({ params }: PageProps) {
         <Button
           variant={activeTab === "assets" ? "default" : "ghost"}
           className="rounded-b-none"
-          onClick={() => setActiveTab("assets")}
+          onClick={() => handlePersonTabChange("assets")}
         >
           <Laptop className="mr-2 h-4 w-4" />
           Assets ({assignedAssets.length})
@@ -226,7 +287,7 @@ export default function PersonDetailPage({ params }: PageProps) {
         <Button
           variant={activeTab === "licenses" ? "default" : "ghost"}
           className="rounded-b-none"
-          onClick={() => setActiveTab("licenses")}
+          onClick={() => handlePersonTabChange("licenses")}
         >
           <KeyRound className="mr-2 h-4 w-4" />
           Licenses ({assignedLicenses.length})
@@ -234,12 +295,97 @@ export default function PersonDetailPage({ params }: PageProps) {
         <Button
           variant={activeTab === "history" ? "default" : "ghost"}
           className="rounded-b-none"
-          onClick={() => setActiveTab("history")}
+          onClick={() => handlePersonTabChange("history")}
         >
           <History className="mr-2 h-4 w-4" />
           History ({activityLogs.length})
         </Button>
       </div>
+
+      {activeTab === "assets" && (
+        <BulkActionBar
+          selectedCount={selectedAssets.length}
+          entityLabel="asset"
+          onClearSelection={bulk.clear}
+          exportConfig={{
+            filename: `${fullName.toLowerCase().replace(/\s+/g, "_")}_assigned_assets_selected`,
+            sheetName: "Assigned Assets",
+            data: selectedAssets,
+            columns: assetExportColumns,
+          }}
+          actions={
+            permissions.canCheckoutCheckin
+              ? [
+                  {
+                    id: "bulk-checkin-person-assets",
+                    label: "Checkin Selected",
+                    icon: <RotateCcw size={14} />,
+                    confirmTitle: `Check in ${selectedAssets.length} selected asset(s) from ${fullName}?`,
+                    confirmDescription:
+                      "Selected assets will be unassigned and reset to Ready to Deploy / Available.",
+                    onExecute: async () => {
+                      try {
+                        const res = await executeBulkAction({
+                          entity: "asset",
+                          action: "checkin",
+                          ids: selectedAssets.map((a: any) => a._id),
+                        });
+                        toast({ title: "Bulk Checkin Complete", description: res.message });
+                        bulk.clear();
+                        await Promise.all([
+                          refetch(),
+                          queryClient.invalidateQueries({ queryKey: ["person", id] }),
+                          queryClient.invalidateQueries({ queryKey: ["assets"] }),
+                          queryClient.invalidateQueries({ queryKey: ["counttotals"] }),
+                          queryClient.invalidateQueries({ queryKey: ["dashboard-recent-activity"] }),
+                        ]);
+                      } catch (err) {
+                        toast({
+                          title: "Bulk Checkin Failed",
+                          description: getClientErrorMessage(
+                            err,
+                            "Failed to check in selected assets."
+                          ),
+                          variant: "destructive",
+                        });
+                      }
+                    },
+                  },
+                ]
+              : []
+          }
+        />
+      )}
+
+      {activeTab === "licenses" && (
+        <BulkActionBar
+          selectedCount={selectedLicenses.length}
+          entityLabel="license"
+          onClearSelection={bulk.clear}
+          exportConfig={{
+            filename: `${fullName.toLowerCase().replace(/\s+/g, "_")}_assigned_licenses_selected`,
+            sheetName: "Assigned Licenses",
+            data: selectedLicenses,
+            columns: licenseExportColumns,
+          }}
+          actions={[]}
+        />
+      )}
+
+      {activeTab === "history" && (
+        <BulkActionBar
+          selectedCount={selectedLogs.length}
+          entityLabel="activity log"
+          onClearSelection={bulk.clear}
+          exportConfig={{
+            filename: `${fullName.toLowerCase().replace(/\s+/g, "_")}_history_selected`,
+            sheetName: "History",
+            data: selectedLogs,
+            columns: historyExportColumns,
+          }}
+          actions={[]}
+        />
+      )}
 
       {/* Tab 1: Assigned Assets */}
       {activeTab === "assets" && (
@@ -247,6 +393,18 @@ export default function PersonDetailPage({ params }: PageProps) {
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={bulk.headerCheckState(assignedAssets.map((a: any) => a._id))}
+                    onCheckedChange={(checked) =>
+                      bulk.toggleAll(
+                        assignedAssets.map((a: any) => a._id),
+                        !!checked
+                      )
+                    }
+                    aria-label="Select all assigned assets"
+                  />
+                </TableHead>
                 <TableHead>Image</TableHead>
                 <TableHead>Asset Tag</TableHead>
                 <TableHead>Name</TableHead>
@@ -261,13 +419,20 @@ export default function PersonDetailPage({ params }: PageProps) {
             <TableBody>
               {assignedAssets.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                     No hardware assets currently checked out to this person.
                   </TableCell>
                 </TableRow>
               ) : (
                 assignedAssets.map((asset: any) => (
                   <TableRow key={asset._id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={bulk.isSelected(asset._id)}
+                        onCheckedChange={(checked) => bulk.toggleOne(asset._id, !!checked)}
+                        aria-label={`Select ${asset.asset_tag || asset.asset_name}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       <ImageThumbnail
                         src={asset.image || asset.asset_model?.image}
@@ -292,12 +457,20 @@ export default function PersonDetailPage({ params }: PageProps) {
                     </TableCell>
                     <TableCell>${asset.purchase_cost ?? 0}</TableCell>
                     <TableCell className="text-right">
-                      <AssetCheckinDialog
-                        assetId={asset._id}
-                        assetTag={asset.asset_tag}
-                        assetName={asset.asset_name}
-                        assignedToName={fullName}
-                      />
+                      {permissions.canCheckoutCheckin ? (
+                        <AssetCheckinDialog
+                          assetId={asset._id}
+                          assetTag={asset.asset_tag}
+                          assetName={asset.asset_name}
+                          assignedToName={fullName}
+                        />
+                      ) : (
+                        <Link href={`/assets/view/${asset._id}`}>
+                          <Button size="sm" variant="outline" className="text-xs">
+                            View Asset
+                          </Button>
+                        </Link>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
@@ -313,6 +486,18 @@ export default function PersonDetailPage({ params }: PageProps) {
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={bulk.headerCheckState(assignedLicenses.map((l: any) => l._id))}
+                    onCheckedChange={(checked) =>
+                      bulk.toggleAll(
+                        assignedLicenses.map((l: any) => l._id),
+                        !!checked
+                      )
+                    }
+                    aria-label="Select all assigned licenses"
+                  />
+                </TableHead>
                 <TableHead>Software Name</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Manufacturer</TableHead>
@@ -323,13 +508,20 @@ export default function PersonDetailPage({ params }: PageProps) {
             <TableBody>
               {assignedLicenses.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                     No software licenses assigned to this person.
                   </TableCell>
                 </TableRow>
               ) : (
                 assignedLicenses.map((lic: any) => (
                   <TableRow key={lic._id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={bulk.isSelected(lic._id)}
+                        onCheckedChange={(checked) => bulk.toggleOne(lic._id, !!checked)}
+                        aria-label={`Select ${lic.name}`}
+                      />
+                    </TableCell>
                     <TableCell className="font-semibold">{lic.name}</TableCell>
                     <TableCell>{lic.category?.name || "-"}</TableCell>
                     <TableCell>{lic.manufacturer?.name || "-"}</TableCell>
@@ -353,6 +545,18 @@ export default function PersonDetailPage({ params }: PageProps) {
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={bulk.headerCheckState(activityLogs.map((log: any) => log._id))}
+                    onCheckedChange={(checked) =>
+                      bulk.toggleAll(
+                        activityLogs.map((log: any) => log._id),
+                        !!checked
+                      )
+                    }
+                    aria-label="Select all history logs"
+                  />
+                </TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Action</TableHead>
                 <TableHead>Item Type</TableHead>
@@ -364,13 +568,20 @@ export default function PersonDetailPage({ params }: PageProps) {
             <TableBody>
               {activityLogs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                     No history logs for this person yet.
                   </TableCell>
                 </TableRow>
               ) : (
                 activityLogs.map((log: any) => (
                   <TableRow key={log._id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={bulk.isSelected(log._id)}
+                        onCheckedChange={(checked) => bulk.toggleOne(log._id, !!checked)}
+                        aria-label={`Select log ${log.item_name || log._id}`}
+                      />
+                    </TableCell>
                     <TableCell className="text-xs">
                       {log.created_at
                         ? format(new Date(log.created_at), "PPp")

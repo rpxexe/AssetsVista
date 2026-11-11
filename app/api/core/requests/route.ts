@@ -1,6 +1,6 @@
 import { apiErrorResponse } from "@/lib/apiError";
 import dbconnect from "@/lib/dbconnect";
-import { getAuthenticatedActor, getWorkspaceUserId } from "@/lib/serverAuth";
+import { getAuthenticatedActor } from "@/lib/serverAuth";
 import { ActionLogModel } from "@/models/ActionLog.model";
 import { AccessoriesModel } from "@/models/Accessories.model";
 import { AssetModel } from "@/models/Assets.model";
@@ -55,8 +55,8 @@ async function resolveRequestedItem(
 
 export async function GET(req: NextRequest) {
   try {
-    const workspaceId = await getWorkspaceUserId();
-    if (!workspaceId) {
+    const actor = await getAuthenticatedActor();
+    if (!actor) {
       return NextResponse.json(
         { success: false, message: "Authentication required" },
         { status: 401 }
@@ -67,9 +67,18 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status") || "all";
 
-    const filter: Record<string, any> = { userId: workspaceId };
+    const filter: Record<string, any> = { userId: actor.workspaceId };
     if (["pending", "fulfilled", "canceled"].includes(status)) {
       filter.status = status;
+    }
+
+    // Request users see only their own submitted requests
+    if (!actor.permissions.canFulfillRequests) {
+      const ownOr: Record<string, unknown>[] = [{ requester_email: actor.dbUser.email }];
+      if (actor.dbUser.personId) {
+        ownOr.unshift({ requester: actor.dbUser.personId });
+      }
+      filter.$or = ownOr;
     }
 
     const requests = await CheckoutRequestModel.find(filter)
@@ -121,7 +130,9 @@ export async function POST(req: NextRequest) {
     }
 
     let requesterPersonId =
-      body.requester && mongoose.Types.ObjectId.isValid(body.requester)
+      actor.permissions.canFulfillRequests &&
+      body.requester &&
+      mongoose.Types.ObjectId.isValid(body.requester)
         ? body.requester
         : actor.dbUser.personId;
     let requesterName = actor.dbUser.name || actor.dbUser.email;
@@ -220,6 +231,28 @@ export async function PATCH(req: NextRequest) {
         { success: false, message: "Request not found" },
         { status: 404 }
       );
+    }
+
+    if (action === "fulfill" && !actor.permissions.canFulfillRequests) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Forbidden: Only Admins or Assets Users can fulfill requests.",
+        },
+        { status: 403 }
+      );
+    }
+
+    if (action === "cancel" && !actor.permissions.canFulfillRequests) {
+      const isOwnRequest =
+        requestDoc.requester_email === actor.dbUser.email ||
+        (actor.dbUser.personId && requestDoc.requester?.toString() === actor.dbUser.personId);
+      if (!isOwnRequest) {
+        return NextResponse.json(
+          { success: false, message: "Forbidden: You can only cancel your own requests." },
+          { status: 403 }
+        );
+      }
     }
 
     const now = new Date();

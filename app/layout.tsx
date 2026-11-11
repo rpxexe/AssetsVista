@@ -1,10 +1,8 @@
-
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import QueryClientProviderWrapper from "./providers/queryClientProvider";
 import { Metadata } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
 import { Plus_Jakarta_Sans } from "next/font/google";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -29,21 +27,19 @@ export default function RootLayout({
       className={plusJakartaSans.variable}
       suppressHydrationWarning
     >
-      <ClerkProvider>
-        <body className={`${plusJakartaSans.className} font-sans antialiased`}>
-          <QueryClientProviderWrapper>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              enableSystem
-              disableTransitionOnChange
-            >
-              {children}
-              <Toaster/>
-            </ThemeProvider>
-          </QueryClientProviderWrapper>
-        </body>
-      </ClerkProvider>
+      <body className={`${plusJakartaSans.className} font-sans antialiased`}>
+        <QueryClientProviderWrapper>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster />
+          </ThemeProvider>
+        </QueryClientProviderWrapper>
+      </body>
     </html>
   );
 }

@@ -42,6 +42,8 @@ import {
 } from "../ui/select";
 import { Badge } from "../ui/badge";
 import { ExportButton } from "@/components/ExportButton";
+import { Checkbox } from "@/components/ui/checkbox";
+import { TaxonomyBulkBar } from "@/components/tables/TaxonomyBulkBar";
 import type { ExportColumnDef, ExportSheet } from "@/lib/exportData";
 
 export type ActionLog = {
@@ -68,6 +70,7 @@ export function ActivityLogTable() {
   );
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = React.useState({});
   const [selectedAction, setSelectedAction] = React.useState<string>("all");
 
   const {
@@ -186,6 +189,28 @@ export function ActivityLogTable() {
 
   const columns: ColumnDef<ActionLog>[] = [
     {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
       accessorKey: "created_at",
       header: "Date & Time",
       cell: ({ row }) => {
@@ -293,10 +318,12 @@ export function ActivityLogTable() {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
     state: {
       sorting,
       columnFilters,
       columnVisibility,
+      rowSelection,
     },
   });
 
@@ -336,6 +363,7 @@ export function ActivityLogTable() {
             filename="activity_audit_log"
             sheetName="Activity Logs"
             data={table.getFilteredRowModel().rows.map((r) => r.original)}
+            selectedData={table.getFilteredSelectedRowModel().rows.map((r) => r.original)}
             allData={data}
             columns={activityExportColumns}
             columnVisibility={columnVisibility}
@@ -381,6 +409,17 @@ export function ActivityLogTable() {
           </DropdownMenu>
         </div>
       </div>
+
+      <TaxonomyBulkBar
+        entity="actionlog"
+        entityLabel="activity log"
+        filename="activity_audit_log_selected"
+        sheetName="Activity Logs"
+        selectedRows={table.getFilteredSelectedRowModel().rows.map((r) => r.original)}
+        columns={activityExportColumns}
+        onClearSelection={() => setRowSelection({})}
+        onSuccess={refetch}
+      />
 
       {isLoading ? (
         <div className="w-full h-full flex items-center justify-center py-12">

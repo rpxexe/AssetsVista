@@ -55,6 +55,8 @@ import {
   
   import { useQuery } from "@tanstack/react-query";
 import DepartmentEditForm from "../forms/settings/department/DepartmentEditForm";
+import { TaxonomyBulkBar } from "@/components/tables/TaxonomyBulkBar";
+import type { ExportColumnDef } from "@/lib/exportData";
   
 export type Department = {
   _id: string;
@@ -68,6 +70,14 @@ export type Department = {
   };
   assets: number;
 };
+
+const departmentExportColumns: ExportColumnDef<Department>[] = [
+  { header: "Department", accessor: (r) => r.name },
+  { header: "Company", accessor: (r) => r.company?.name ?? "" },
+  { header: "Location", accessor: (r) => r.location?.name ?? "" },
+  { header: "Phone", accessor: (r) => r.phone ?? "" },
+  { header: "Assets", accessor: (r) => r.assets ?? 0 },
+];
   export function DepartmentTable() {
     const { toast } = useToast();
   
@@ -277,6 +287,16 @@ export type Department = {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        <TaxonomyBulkBar
+          entity="department"
+          entityLabel="department"
+          filename="departments_selected"
+          sheetName="Departments"
+          selectedRows={table.getFilteredSelectedRowModel().rows.map((r) => r.original as Department)}
+          columns={departmentExportColumns}
+          onClearSelection={() => setRowSelection({})}
+          onSuccess={refetch}
+        />
         {isLoading ? (
           <div className="w-full h-full flex items-center justify-center">
             <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />

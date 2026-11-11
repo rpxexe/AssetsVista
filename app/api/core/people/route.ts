@@ -1,7 +1,8 @@
 import dbconnect from "@/lib/dbconnect";
 import { apiErrorResponse } from "@/lib/apiError";
 import { invalidateElasticIndexCache } from "@/lib/elasticSearch";
-import { getWorkspaceUserId } from "@/lib/serverAuth";
+import { normalizeUserRole } from "@/lib/rbac";
+import { requirePermission } from "@/lib/serverAuth";
 import { PeopleModel } from "@/models/Peoples.model";
 import { AssetModel } from "@/models/Assets.model";
 import { LicenseModel } from "@/models/Licenses.model";
@@ -12,13 +13,14 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(req: NextRequest) {
   await dbconnect();
   try {
-    const workspaceId = await getWorkspaceUserId();
-    if (!workspaceId) {
-      return NextResponse.json(
-        { success: false, message: "Authentication required" },
-        { status: 401 }
-      );
+    const authResult = await requirePermission(
+      "canViewPeople",
+      "Only Admin or Assets User roles can browse the People Directory."
+    );
+    if ("error" in authResult) {
+      return authResult.error;
     }
+    const workspaceId = authResult.actor.workspaceId;
 
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search");
@@ -135,7 +137,7 @@ export async function GET(req: NextRequest) {
         assets_count: assetsCount,
         licenses_count: matchedLicenseIds.size,
         user_id: linkedUser?._id?.toString() || null,
-        role: linkedUser?.role || null,
+        role: linkedUser?.role ? normalizeUserRole(linkedUser.role) : null,
         isActive: linkedUser ? linkedUser.isActive !== false : null,
         lastLogin: linkedUser?.lastLogin || null,
       };
@@ -167,13 +169,14 @@ export async function GET(req: NextRequest) {
 export async function POST(req: Request) {
   await dbconnect();
   try {
-    const workspaceId = await getWorkspaceUserId();
-    if (!workspaceId) {
-      return NextResponse.json(
-        { success: false, message: "Authentication required" },
-        { status: 401 }
-      );
+    const authResult = await requirePermission(
+      "canManagePeople",
+      "Only Admins can add people to the directory."
+    );
+    if ("error" in authResult) {
+      return authResult.error;
     }
+    const workspaceId = authResult.actor.workspaceId;
 
     const body = await req.json();
 
@@ -240,13 +243,14 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: NextRequest) {
   await dbconnect();
-  const workspaceId = await getWorkspaceUserId();
-  if (!workspaceId) {
-    return NextResponse.json(
-      { success: false, message: "Authentication required" },
-      { status: 401 }
-    );
+  const authResult = await requirePermission(
+    "canManagePeople",
+    "Only Admins can delete people from the directory."
+  );
+  if ("error" in authResult) {
+    return authResult.error;
   }
+  const workspaceId = authResult.actor.workspaceId;
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");

@@ -1,6 +1,6 @@
-export type UserRole = "superadmin" | "admin" | "manager" | "user";
+export type UserRole = "admin" | "assets_user" | "requester";
 
-export const USER_ROLES: UserRole[] = ["superadmin", "admin", "manager", "user"];
+export const USER_ROLES: UserRole[] = ["admin", "assets_user", "requester"];
 
 export interface RolePermissions {
   canViewAssets: boolean;
@@ -8,12 +8,26 @@ export interface RolePermissions {
   canDeleteAssets: boolean;
   canCheckoutCheckin: boolean;
   canAuditAssets: boolean;
+  canManageMaintenances: boolean;
+  canRequestItems: boolean;
+  canFulfillRequests: boolean;
   canViewPeople: boolean;
   canManagePeople: boolean;
   canManageRoles: boolean;
   canManageSettings: boolean;
   canViewReports: boolean;
   canRunSetup: boolean;
+}
+
+/**
+ * Normalizes canonical and legacy role strings into the 3 supported roles:
+ * `admin`, `assets_user`, and `requester`.
+ */
+export function normalizeUserRole(raw?: string | null): UserRole {
+  const value = (raw || "").trim().toLowerCase();
+  if (value === "admin" || value === "superadmin") return "admin";
+  if (value === "assets_user" || value === "manager") return "assets_user";
+  return "requester";
 }
 
 export const ROLE_METADATA: Record<
@@ -24,35 +38,39 @@ export const ROLE_METADATA: Record<
     badgeClass: string;
   }
 > = {
-  superadmin: {
-    label: "Super Admin",
-    description: "Unrestricted control over roles, system settings, setup wizard, and all inventory.",
-    badgeClass: "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/40 dark:text-purple-300",
-  },
   admin: {
     label: "Admin",
-    description: "Full access to assets, licenses, people, directory settings, and reports.",
-    badgeClass: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/40 dark:text-blue-300",
+    description:
+      "Full system control over user roles, settings, setup wizard, reports, and all inventory.",
+    badgeClass:
+      "bg-zinc-900 text-zinc-50 border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-100",
   },
-  manager: {
-    label: "Manager",
-    description: "Can checkout/checkin assets, run physical audits, and view operational reports.",
-    badgeClass: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300",
+  assets_user: {
+    label: "Assets User",
+    description:
+      "Operates assets, licenses, accessories, checkouts, audits, maintenances, and request fulfillment.",
+    badgeClass:
+      "bg-zinc-100 text-zinc-900 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-700",
   },
-  user: {
-    label: "Standard User",
-    description: "Self-service access to dashboard, assigned hardware, and printable sign-off sheets.",
-    badgeClass: "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300",
+  requester: {
+    label: "Request User",
+    description:
+      "Self-service access to browse requestable items, submit requests, accept EULAs, and view own hardware.",
+    badgeClass:
+      "bg-muted text-muted-foreground border-border",
   },
 };
 
 export const PERMISSION_MATRIX: Record<UserRole, RolePermissions> = {
-  superadmin: {
+  admin: {
     canViewAssets: true,
     canCreateEditAssets: true,
     canDeleteAssets: true,
     canCheckoutCheckin: true,
     canAuditAssets: true,
+    canManageMaintenances: true,
+    canRequestItems: true,
+    canFulfillRequests: true,
     canViewPeople: true,
     canManagePeople: true,
     canManageRoles: true,
@@ -60,25 +78,15 @@ export const PERMISSION_MATRIX: Record<UserRole, RolePermissions> = {
     canViewReports: true,
     canRunSetup: true,
   },
-  admin: {
-    canViewAssets: true,
-    canCreateEditAssets: true,
-    canDeleteAssets: true,
-    canCheckoutCheckin: true,
-    canAuditAssets: true,
-    canViewPeople: true,
-    canManagePeople: true,
-    canManageRoles: true,
-    canManageSettings: true,
-    canViewReports: true,
-    canRunSetup: false,
-  },
-  manager: {
+  assets_user: {
     canViewAssets: true,
     canCreateEditAssets: true,
     canDeleteAssets: false,
     canCheckoutCheckin: true,
     canAuditAssets: true,
+    canManageMaintenances: true,
+    canRequestItems: true,
+    canFulfillRequests: true,
     canViewPeople: true,
     canManagePeople: false,
     canManageRoles: false,
@@ -86,12 +94,15 @@ export const PERMISSION_MATRIX: Record<UserRole, RolePermissions> = {
     canViewReports: true,
     canRunSetup: false,
   },
-  user: {
+  requester: {
     canViewAssets: true,
     canCreateEditAssets: false,
     canDeleteAssets: false,
     canCheckoutCheckin: false,
     canAuditAssets: false,
+    canManageMaintenances: false,
+    canRequestItems: true,
+    canFulfillRequests: false,
     canViewPeople: false,
     canManagePeople: false,
     canManageRoles: false,
@@ -102,29 +113,26 @@ export const PERMISSION_MATRIX: Record<UserRole, RolePermissions> = {
 };
 
 export const PERMISSION_LABELS: { key: keyof RolePermissions; label: string }[] = [
-  { key: "canViewAssets", label: "View Assets & Inventory" },
+  { key: "canViewAssets", label: "View Assets & Requestable Catalog" },
+  { key: "canRequestItems", label: "Submit Item Requests & Accept EULAs" },
+  { key: "canFulfillRequests", label: "Fulfill & Approve Item Requests" },
   { key: "canCreateEditAssets", label: "Create / Edit Inventory Items" },
-  { key: "canDeleteAssets", label: "Delete Assets & Records" },
   { key: "canCheckoutCheckin", label: "Checkout & Checkin Equipment" },
   { key: "canAuditAssets", label: "Perform Physical Audits" },
+  { key: "canManageMaintenances", label: "Manage Asset Maintenances" },
+  { key: "canDeleteAssets", label: "Delete Assets & Inventory Records" },
   { key: "canViewPeople", label: "Browse People Directory" },
   { key: "canManagePeople", label: "Create / Edit / Delete People" },
-  { key: "canManageRoles", label: "Manage User Roles & Login Access" },
+  { key: "canManageRoles", label: "Manage User Accounts & Roles" },
   { key: "canManageSettings", label: "Manage Companies, Locations & Taxonomy" },
   { key: "canViewReports", label: "View Depreciation, Audit & Compliance Reports" },
-  { key: "canRunSetup", label: "Run System Setup Wizard" },
+  { key: "canRunSetup", label: "Run System Setup & Database Wizard" },
 ];
 
 export function getPermissionsForRole(role?: string | null): RolePermissions {
-  if (role && role in PERMISSION_MATRIX) {
-    return PERMISSION_MATRIX[role as UserRole];
-  }
-  return PERMISSION_MATRIX.user;
+  return PERMISSION_MATRIX[normalizeUserRole(role)];
 }
 
-export function canAssignRole(actorRole: UserRole, targetRole: UserRole): boolean {
-  if (actorRole === "superadmin") return true;
-  if (actorRole === "admin") return targetRole !== "superadmin";
-  return false;
+export function canAssignRole(actorRole: UserRole): boolean {
+  return normalizeUserRole(actorRole) === "admin";
 }
-

@@ -37,6 +37,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { ExportButton } from "@/components/ExportButton";
+import { BulkActionBar } from "@/components/BulkActionBar";
+import { executeBulkAction } from "@/lib/bulkClient";
+import { getClientErrorMessage } from "@/lib/errorMessages";
+import { usePermissions } from "@/hooks/usePermissions";
 import type { ExportColumnDef } from "@/lib/exportData";
 import { ImageThumbnail } from "@/components/ImageThumbnail";
 import ConsumableEditForm from "../forms/Consumables/ConsumableEditForm";
@@ -90,6 +94,7 @@ export type Consumable = {
 export function ConsumablesTable() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { permissions } = usePermissions();
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -388,6 +393,58 @@ export function ConsumablesTable() {
           </DropdownMenu>
         </div>
       </div>
+
+      {(() => {
+        const selected = table.getFilteredSelectedRowModel().rows.map((r) => r.original);
+        return (
+          <BulkActionBar
+            selectedCount={selected.length}
+            entityLabel="consumable"
+            onClearSelection={() => setRowSelection({})}
+            exportConfig={{
+              filename: "consumables_selected",
+              sheetName: "Selected Consumables",
+              data: selected,
+              columns: consumableExportColumns,
+            }}
+            actions={
+              permissions.canDeleteAssets
+                ? [
+                    {
+                      id: "bulk-delete-consumables",
+                      label: "Delete Selected",
+                      icon: <Trash size={14} />,
+                      variant: "destructive",
+                      confirmTitle: `Delete ${selected.length} selected consumable(s)?`,
+                      onExecute: async () => {
+                        try {
+                          const res = await executeBulkAction({
+                            entity: "consumable",
+                            action: "delete",
+                            ids: selected.map((s) => s._id),
+                          });
+                          toast({ title: "Bulk Delete Complete", description: res.message });
+                          setRowSelection({});
+                          await Promise.all([
+                            refetch(),
+                            queryClient.invalidateQueries({ queryKey: ["counttotals"] }),
+                          ]);
+                        } catch (err) {
+                          toast({
+                            title: "Bulk Delete Failed",
+                            description: getClientErrorMessage(err, "Unable to delete consumables."),
+                            variant: "destructive",
+                          });
+                        }
+                      },
+                    },
+                  ]
+                : []
+            }
+          />
+        );
+      })()}
+
       {isLoading ? (
         <div className="w-full h-full flex items-center justify-center py-12">
           <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />

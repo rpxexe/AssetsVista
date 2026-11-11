@@ -60,8 +60,11 @@ import { Badge } from "../ui/badge";
 import { ExportButton } from "@/components/ExportButton";
 import type { ExportColumnDef } from "@/lib/exportData";
 import { ImageThumbnail } from "@/components/ImageThumbnail";
-import { ROLE_METADATA, UserRole } from "@/lib/rbac";
+import { ROLE_METADATA, normalizeUserRole, UserRole } from "@/lib/rbac";
 import { usePermissions } from "@/hooks/usePermissions";
+import { BulkActionBar } from "@/components/BulkActionBar";
+import { executeBulkAction } from "@/lib/bulkClient";
+import { getClientErrorMessage } from "@/lib/errorMessages";
 
 export type Person = {
   _id: string;
@@ -280,7 +283,7 @@ export function PeopleTable() {
             </Badge>
           );
         }
-        const meta = ROLE_METADATA[r] || ROLE_METADATA.user;
+        const meta = ROLE_METADATA[normalizeUserRole(r)];
         return (
           <div className="flex items-center gap-1.5">
             <Badge variant="outline" className={meta.badgeClass}>
@@ -436,6 +439,62 @@ export function PeopleTable() {
           </DropdownMenu>
         </div>
       </div>
+
+      {(() => {
+        const selectedPeople = table.getFilteredSelectedRowModel().rows.map((r) => r.original);
+        return (
+          <BulkActionBar
+            selectedCount={selectedPeople.length}
+            entityLabel="person"
+            onClearSelection={() => setRowSelection({})}
+            exportConfig={{
+              filename: "people_selected",
+              sheetName: "Selected People",
+              data: selectedPeople,
+              columns: peopleExportColumns,
+            }}
+            actions={
+              permissions.canManagePeople
+                ? [
+                    {
+                      id: "bulk-delete-people",
+                      label: "Delete Selected",
+                      icon: <Trash size={14} />,
+                      variant: "destructive",
+                      confirmTitle: `Delete ${selectedPeople.length} selected person record(s)?`,
+                      confirmDescription:
+                        "People who currently hold assigned assets will be automatically skipped for safety.",
+                      onExecute: async () => {
+                        try {
+                          const res = await executeBulkAction({
+                            entity: "people",
+                            action: "delete",
+                            ids: selectedPeople.map((p) => p._id),
+                          });
+                          toast({ title: "Bulk Action Complete", description: res.message });
+                          setRowSelection({});
+                          await Promise.all([
+                            refetch(),
+                            queryClient.invalidateQueries({ queryKey: ["counttotals"] }),
+                          ]);
+                        } catch (err) {
+                          toast({
+                            title: "Bulk Delete Failed",
+                            description: getClientErrorMessage(
+                              err,
+                              "Unable to delete selected people."
+                            ),
+                            variant: "destructive",
+                          });
+                        }
+                      },
+                    },
+                  ]
+                : []
+            }
+          />
+        );
+      })()}
 
       {isLoading ? (
         <div className="w-full h-full flex items-center justify-center py-12">

@@ -25,7 +25,10 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionBar } from "@/components/BulkActionBar";
 import { Input } from "@/components/ui/input";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
 import {
   Table,
   TableBody,
@@ -102,6 +105,7 @@ function getItemHref(entry: ActivityEntry): string {
 export function RecentActivityWidget() {
   const [collapsed, setCollapsed] = useState(false);
   const [search, setSearch] = useState("");
+  const bulk = useBulkSelection();
 
   const { data = [], isLoading, isFetching, refetch } = useQuery<ActivityEntry[]>({
     queryKey: ["dashboard-recent-activity"],
@@ -137,8 +141,12 @@ export function RecentActivityWidget() {
       { header: "Item", accessor: (r) => r.item_name || "-" },
       { header: "Target", accessor: (r) => r.target_name || "-" },
     ],
-    []
+    [],
   );
+
+  const visibleLogs = filtered.slice(0, 12);
+  const visibleIds = visibleLogs.map((r) => r._id);
+  const selectedLogs = filtered.filter((r) => bulk.isSelected(r._id));
 
   return (
     <div className="border rounded-[2em] bg-card p-5 flex flex-col justify-between h-full">
@@ -162,6 +170,7 @@ export function RecentActivityWidget() {
               filename="recent-activity"
               sheetName="Recent Activity"
               data={filtered}
+              selectedData={selectedLogs}
               columns={exportCols}
               size="sm"
               variant="ghost"
@@ -201,6 +210,19 @@ export function RecentActivityWidget() {
               )}
             </div>
 
+            <BulkActionBar
+              selectedCount={selectedLogs.length}
+              entityLabel="activity log"
+              onClearSelection={bulk.clear}
+              exportConfig={{
+                filename: "recent-activity-selected",
+                sheetName: "Recent Activity",
+                data: selectedLogs,
+                columns: exportCols,
+              }}
+              actions={[]}
+            />
+
             <div className="max-h-[300px] overflow-auto border rounded-xl">
               {isLoading ? (
                 <div className="flex items-center justify-center py-14">
@@ -214,6 +236,13 @@ export function RecentActivityWidget() {
                 <Table>
                   <TableHeader>
                     <TableRow className="text-xs">
+                      <TableHead className="w-8">
+                        <Checkbox
+                          checked={bulk.headerCheckState(visibleIds)}
+                          onCheckedChange={(c) => bulk.toggleAll(visibleIds, !!c)}
+                          aria-label="Select all recent activity"
+                        />
+                      </TableHead>
                       <TableHead className="w-[115px]">Date</TableHead>
                       <TableHead>Created By</TableHead>
                       <TableHead>Action</TableHead>
@@ -222,11 +251,18 @@ export function RecentActivityWidget() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.slice(0, 12).map((row) => {
+                    {visibleLogs.map((row) => {
                       const Icon = getItemIcon(row.item_type);
                       const ts = row.createdAt || row.created_at;
                       return (
                         <TableRow key={row._id} className="text-xs">
+                          <TableCell>
+                            <Checkbox
+                              checked={bulk.isSelected(row._id)}
+                              onCheckedChange={(c) => bulk.toggleOne(row._id, !!c)}
+                              aria-label={`Select activity ${row.item_name || row._id}`}
+                            />
+                          </TableCell>
                           <TableCell className="text-muted-foreground whitespace-nowrap">
                             {ts ? format(new Date(ts), "dd MMM HH:mm") : "-"}
                           </TableCell>

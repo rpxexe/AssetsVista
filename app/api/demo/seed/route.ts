@@ -1,19 +1,31 @@
 import { apiErrorResponse } from "@/lib/apiError";
 import { seedWorkspaceDemoData } from "@/lib/demoData";
-import { getWorkspaceUserId } from "@/lib/serverAuth";
+import { canActorAccessDevTools } from "@/lib/devTools";
+import { requirePermission } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
 
 export async function POST() {
   try {
-    const workspaceId = await getWorkspaceUserId();
-    if (!workspaceId) {
+    const authResult = await requirePermission(
+      "canManageSettings",
+      "Only Admins can seed workspace demo data."
+    );
+    if ("error" in authResult) {
+      return authResult.error;
+    }
+
+    if (!canActorAccessDevTools(authResult.actor)) {
       return NextResponse.json(
-        { success: false, message: "Please sign in to load demo data into your workspace." },
-        { status: 401 }
+        {
+          success: false,
+          message:
+            "Demo data seeding is disabled outside development mode or restricted to configured developer accounts.",
+        },
+        { status: 403 }
       );
     }
 
-    const summary = await seedWorkspaceDemoData(workspaceId);
+    const summary = await seedWorkspaceDemoData(authResult.actor.workspaceId);
 
     return NextResponse.json(
       {

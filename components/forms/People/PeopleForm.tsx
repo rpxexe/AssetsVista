@@ -26,7 +26,9 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import CompanyBox from "@/components/dropDowns/company.dropdown";
 import DepartmentBox from "@/components/dropDowns/department.dropdown";
@@ -273,7 +275,7 @@ export function PeopleForm() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name="start_date"
@@ -281,7 +283,11 @@ export function PeopleForm() {
                       <FormItem>
                         <FormLabel>Start Date</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <DatePicker
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Pick start date"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -294,7 +300,11 @@ export function PeopleForm() {
                       <FormItem>
                         <FormLabel>End / Offboarding Date</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <DatePicker
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Pick end date"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -309,7 +319,7 @@ export function PeopleForm() {
                     <FormItem>
                       <FormLabel>Notes</FormLabel>
                       <FormControl>
-                        <Input placeholder="Additional info..." {...field} />
+                        <Textarea rows={2} placeholder="Additional info..." {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

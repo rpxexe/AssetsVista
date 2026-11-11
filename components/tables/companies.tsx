@@ -56,6 +56,8 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import CompanyEditForm from "../forms/settings/company/CompanyEditForm";
 import { ImageThumbnail } from "@/components/ImageThumbnail";
+import { TaxonomyBulkBar } from "@/components/tables/TaxonomyBulkBar";
+import type { ExportColumnDef } from "@/lib/exportData";
 
 
 export type Company = {
@@ -67,6 +69,14 @@ export type Company = {
   department:number;
   image?: string;
 };
+
+const companyExportColumns: ExportColumnDef<Company>[] = [
+  { header: "Company Name", accessor: (r) => r.name },
+  { header: "Email", accessor: (r) => r.email ?? "" },
+  { header: "Assets", accessor: (r) => r.assets ?? 0 },
+  { header: "Licenses", accessor: (r) => r.licenses ?? 0 },
+  { header: "Departments", accessor: (r) => r.department ?? 0 },
+];
 
 export function CompanyTable() {
   const { toast } = useToast();
@@ -280,6 +290,16 @@ export function CompanyTable() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <TaxonomyBulkBar
+        entity="company"
+        entityLabel="company"
+        filename="companies_selected"
+        sheetName="Companies"
+        selectedRows={table.getFilteredSelectedRowModel().rows.map((r) => r.original as Company)}
+        columns={companyExportColumns}
+        onClearSelection={() => setRowSelection({})}
+        onSuccess={refetch}
+      />
       {isLoading ? (
         <div className="w-full h-full flex items-center justify-center">
           <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />

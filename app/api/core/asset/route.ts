@@ -1,7 +1,7 @@
 import dbconnect from "@/lib/dbconnect";
 import { apiErrorResponse } from "@/lib/apiError";
 import { invalidateElasticIndexCache } from "@/lib/elasticSearch";
-import { getWorkspaceUserId } from "@/lib/serverAuth";
+import { getWorkspaceUserId, requirePermission } from "@/lib/serverAuth";
 import { ActionLogModel } from "@/models/ActionLog.model";
 import { AssetModel } from "@/models/Assets.model";
 import { AssetModel_Model } from "@/models/setting/AssetModels.model";
@@ -17,13 +17,14 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: Request) {
   await dbconnect();
   try {
-    const workspaceId = await getWorkspaceUserId();
-    if (!workspaceId) {
-      return NextResponse.json(
-        { success: false, message: "Authentication required" },
-        { status: 401 }
-      );
+    const authResult = await requirePermission(
+      "canCreateEditAssets",
+      "Only Admin or Assets User roles can create assets."
+    );
+    if ("error" in authResult) {
+      return authResult.error;
     }
+    const workspaceId = authResult.actor.workspaceId;
 
     const body = await req.json();
 
@@ -327,13 +328,14 @@ export async function GET(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   await dbconnect();
-  const workspaceId = await getWorkspaceUserId();
-  if (!workspaceId) {
-    return NextResponse.json(
-      { success: false, message: "Authentication required" },
-      { status: 401 }
-    );
+  const authResult = await requirePermission(
+    "canDeleteAssets",
+    "Only Admins can permanently delete assets."
+  );
+  if ("error" in authResult) {
+    return authResult.error;
   }
+  const workspaceId = authResult.actor.workspaceId;
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");

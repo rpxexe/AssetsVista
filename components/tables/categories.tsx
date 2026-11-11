@@ -55,6 +55,8 @@ import {
 
 import { useQuery } from "@tanstack/react-query";
 import CategoryEditForm from "../forms/settings/category/CategoryEditForm";
+import { TaxonomyBulkBar } from "@/components/tables/TaxonomyBulkBar";
+import type { ExportColumnDef } from "@/lib/exportData";
 
 export type Category = {
   _id: string;
@@ -64,6 +66,14 @@ export type Category = {
   qty: number;
   license: number;
 };
+
+const categoryExportColumns: ExportColumnDef<Category>[] = [
+  { header: "Category Name", accessor: (r) => r.name },
+  { header: "Type", accessor: (r) => r.type },
+  { header: "Send Email", accessor: (r) => (r.email ? "Yes" : "No") },
+  { header: "Qty", accessor: (r) => r.qty ?? 0 },
+  { header: "Licenses", accessor: (r) => r.license ?? 0 },
+];
 export function CategoryTable() {
   const { toast } = useToast();
 
@@ -288,6 +298,16 @@ export function CategoryTable() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <TaxonomyBulkBar
+        entity="category"
+        entityLabel="category"
+        filename="categories_selected"
+        sheetName="Categories"
+        selectedRows={table.getFilteredSelectedRowModel().rows.map((r) => r.original as Category)}
+        columns={categoryExportColumns}
+        onClearSelection={() => setRowSelection({})}
+        onSuccess={refetch}
+      />
       {isLoading ? (
         <div className="w-full h-full flex items-center justify-center">
           <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />

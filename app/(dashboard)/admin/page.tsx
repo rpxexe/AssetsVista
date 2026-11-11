@@ -7,6 +7,7 @@ import { LowInventoryWidget } from "@/components/dashboard/LowInventoryWidget";
 import { NeedsAttentionWidget } from "@/components/dashboard/NeedsAttentionWidget";
 import { LocationsSummaryWidget } from "@/components/dashboard/LocationsSummaryWidget";
 import { CategoriesSummaryWidget } from "@/components/dashboard/CategoriesSummaryWidget";
+import { RequesterDashboardView } from "@/components/dashboard/RequesterDashboardView";
 import axios from "axios";
 import {
   Droplets,
@@ -19,18 +20,17 @@ import {
   Loader2,
   CloudAlert,
   Users,
-  Rocket,
-  CheckCircle2,
-  Circle,
-  Database,
-  X,
+  Settings2,
+  ShieldCheck,
+  ClipboardList,
+  Wrench,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { getClientErrorMessage } from "@/lib/errorMessages";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePermissions } from "@/hooks/usePermissions";
+import { ROLE_METADATA } from "@/lib/rbac";
+import { useQuery } from "@tanstack/react-query";
 
 export type CountTotal = {
   Assets: number;
@@ -42,10 +42,9 @@ export type CountTotal = {
 };
 
 export default function Page() {
-  const [bannerDismissed, setBannerDismissed] = useState(false);
-  const [seedingDemo, setSeedingDemo] = useState(false);
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
+  const { role, dbUser, isLoading: authLoading } = usePermissions();
+
+  const isRequester = !authLoading && Boolean(dbUser) && role === "requester";
 
   const {
     data: total,
@@ -57,51 +56,21 @@ export default function Page() {
       const response = await axios.get("/api/counttotals");
       return response.data.data;
     },
-    staleTime: 1000 * 60 * 2, // 2 minutes fresh dashboard counters
+    enabled: !authLoading && !isRequester,
+    staleTime: 1000 * 60 * 2,
   });
 
-  const { data: setupStatus } = useQuery<{
-    setup_completed: boolean;
-    checklist?: Record<string, boolean>;
-  }>({
-    queryKey: ["setup-status"],
-    queryFn: async () => {
-      const res = await axios.get("/api/setup/status");
-      return res.data;
-    },
-    staleTime: 1000 * 60 * 10, // Setup completion rarely changes after initial onboarding
-  });
+  if (authLoading) {
+    return (
+      <div className="flex flex-1 items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
-  const isEmptyWorkspace =
-    Boolean(total) &&
-    total!.Assets === 0 &&
-    total!.Licenses === 0 &&
-    total!.Accessories === 0 &&
-    total!.Consumables === 0 &&
-    total!.Components === 0 &&
-    total!.People === 0;
-
-  const handleLoadDemoData = async () => {
-    setSeedingDemo(true);
-    try {
-      const res = await axios.post("/api/demo/seed");
-      await queryClient.invalidateQueries();
-      toast({
-        title: "Demo Data Loaded",
-        description:
-          res.data?.message ||
-          "Sample inventory, people, settings, and activity logs added to your workspace.",
-      });
-    } catch (err) {
-      toast({
-        title: "Could not load demo data",
-        description: getClientErrorMessage(err, "Failed to populate demo data."),
-        variant: "destructive",
-      });
-    } finally {
-      setSeedingDemo(false);
-    }
-  };
+  if (isRequester) {
+    return <RequesterDashboardView />;
+  }
 
   const data = [
     {
@@ -141,99 +110,63 @@ export default function Page() {
       url: "/people",
     },
   ];
+
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 pt-0 ">
-      <div className="border rounded-[2.5em] h-full p-4 w-full flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center space-x-2">
+    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+      <div className="border rounded-[2.5em] h-full p-4 w-full flex flex-wrap items-center justify-between gap-3 bg-card">
+        <div className="flex flex-wrap items-center gap-3">
           <LayoutDashboard strokeWidth={2.2} size={28} />
-          <h3 className="text-3xl font-semibold ">Dashboard</h3>
+          <h3 className="text-2xl sm:text-3xl font-semibold">
+            {role === "admin" ? "Admin Dashboard" : "Assets Operations Dashboard"}
+          </h3>
+          {dbUser && (
+            <Badge variant="outline" className={ROLE_METADATA[role].badgeClass}>
+              {ROLE_METADATA[role].label}
+            </Badge>
+          )}
         </div>
-        {isEmptyWorkspace && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleLoadDemoData}
-            disabled={seedingDemo}
-            className="gap-2 rounded-full"
-          >
-            {seedingDemo ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Database className="h-4 w-4" />
-            )}
-            {seedingDemo ? "Loading Demo Data..." : "Load Demo Data"}
-          </Button>
-        )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          {role === "admin" ? (
+            <>
+              <Link href="/people?tab=roles">
+                <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
+                  <ShieldCheck className="h-4 w-4" />
+                  Users &amp; Roles
+                </Button>
+              </Link>
+              <Link href="/settings">
+                <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
+                  <Settings2 className="h-4 w-4" />
+                  Settings
+                </Button>
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/assets/listall">
+                <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
+                  <LibraryBig className="h-4 w-4" />
+                  Manage Assets
+                </Button>
+              </Link>
+              <Link href="/requests">
+                <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
+                  <ClipboardList className="h-4 w-4" />
+                  Requests Queue
+                </Button>
+              </Link>
+              <Link href="/maintenances">
+                <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
+                  <Wrench className="h-4 w-4" />
+                  Maintenances
+                </Button>
+              </Link>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Onboarding Setup Banner for New Workspaces */}
-      {setupStatus && !setupStatus.setup_completed && !bannerDismissed && (
-        <div className="border bg-card rounded-[2em] p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative">
-          <div className="space-y-2 pr-6">
-            <div className="flex items-center gap-2">
-              <Rocket className="h-5 w-5 text-foreground" />
-              <h4 className="font-semibold text-base">
-                Welcome to AssetsVista — Finish Your Workspace Setup
-              </h4>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Run the 4-step Setup Wizard to verify pre-flight checks, configure your organization,
-              and seed standard status labels &amp; categories — or populate demo records immediately.
-            </p>
-            {setupStatus.checklist && (
-              <div className="flex flex-wrap gap-3 pt-1 text-xs">
-                {[
-                  { label: "Company", done: setupStatus.checklist.hasCompany },
-                  { label: "Location", done: setupStatus.checklist.hasLocation },
-                  { label: "Status Labels", done: setupStatus.checklist.hasStatuses },
-                  { label: "Categories", done: setupStatus.checklist.hasCategories },
-                ].map((c) => (
-                  <span key={c.label} className="inline-flex items-center gap-1">
-                    {c.done ? (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-foreground" />
-                    ) : (
-                      <Circle className="h-3.5 w-3.5 text-muted-foreground" />
-                    )}
-                    <span className={c.done ? "text-foreground font-medium" : "text-muted-foreground"}>
-                      {c.label}
-                    </span>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <Button
-              variant="outline"
-              onClick={handleLoadDemoData}
-              disabled={seedingDemo}
-              className="gap-2 rounded-full"
-            >
-              {seedingDemo ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Database className="h-4 w-4" />
-              )}
-              {seedingDemo ? "Loading..." : "Load Demo Data"}
-            </Button>
-            <Link href="/setup">
-              <Button className="gap-2 rounded-full">
-                <Rocket className="h-4 w-4" />
-                Launch Setup Wizard
-              </Button>
-            </Link>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setBannerDismissed(true)}
-              aria-label="Dismiss setup banner"
-              className="rounded-full"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
       <div className="grid auto-rows-min gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         {data.map((item) => (
           <div
@@ -245,7 +178,7 @@ export default function Page() {
                 <span className="font-bold">
                   <item.icon />
                 </span>
-                <p className="m-0 font-semibold ">{item.title}</p>
+                <p className="m-0 font-semibold">{item.title}</p>
               </div>
 
               <Link href={item.url}>
@@ -270,6 +203,7 @@ export default function Page() {
           </div>
         ))}
       </div>
+
       {/* Row 1: Recent Activity (Left 8 cols) + Today & Up Next (Right 4 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
         <div className="lg:col-span-8">

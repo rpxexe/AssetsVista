@@ -8,9 +8,15 @@ import { format } from "date-fns";
 import { Check, ClipboardCheck, Loader2, Search, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionBar } from "@/components/BulkActionBar";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import { executeBulkAction } from "@/lib/bulkClient";
+import { getClientErrorMessage } from "@/lib/errorMessages";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -60,6 +66,7 @@ export default function AcceptancesPage() {
   );
   const [search, setSearch] = useState("");
   const [activeRow, setActiveRow] = useState<AcceptanceRow | null>(null);
+  const bulk = useBulkSelection();
   const [modalAction, setModalAction] = useState<"accept" | "decline">("accept");
   const [signature, setSignature] = useState("");
   const [note, setNote] = useState("");
@@ -145,6 +152,33 @@ export default function AcceptancesPage() {
     }
   };
 
+  const visibleAcceptanceIds = filtered.map((r) => r._id);
+  const selectedAcceptances = filtered.filter((r) => bulk.isSelected(r._id));
+
+  const runAcceptanceBulk = async (action: "accept" | "decline") => {
+    if (selectedAcceptances.length === 0) return;
+    try {
+      const res = await executeBulkAction({
+        entity: "acceptance",
+        action,
+        ids: selectedAcceptances.map((r) => r._id),
+      });
+      toast({ title: "Bulk Acceptance Update", description: res.message });
+      bulk.clear();
+      queryClient.invalidateQueries({ queryKey: ["acceptances"] });
+      queryClient.invalidateQueries({ queryKey: ["needs-attention"] });
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-recent-activity"] });
+      queryClient.invalidateQueries({ queryKey: ["status"] });
+    } catch (err) {
+      toast({
+        title: "Bulk Action Failed",
+        description: getClientErrorMessage(err, "Failed to update selected acceptances."),
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
       <div className="border rounded-[2.5em] p-4 w-full flex flex-wrap items-center justify-between gap-3 bg-card">
@@ -187,6 +221,7 @@ export default function AcceptancesPage() {
             filename="acceptances"
             sheetName="Acceptances"
             data={filtered}
+            selectedData={selectedAcceptances}
             allData={rows}
             columns={exportColumns}
             size="sm"
@@ -194,10 +229,52 @@ export default function AcceptancesPage() {
         </div>
       </div>
 
+      <BulkActionBar
+        selectedCount={selectedAcceptances.length}
+        entityLabel="acceptance"
+        onClearSelection={bulk.clear}
+        exportConfig={{
+          filename: "acceptances_selected",
+          sheetName: "Acceptances",
+          data: selectedAcceptances,
+          columns: exportColumns,
+        }}
+        actions={[
+          {
+            id: "bulk-accept-checkouts",
+            label: "Accept Selected",
+            icon: <Check size={14} />,
+            confirmTitle: `Accept ${selectedAcceptances.length} selected checkout(s)?`,
+            confirmDescription:
+              "Eligible pending custody acknowledgements will be marked accepted using your account signature.",
+            onExecute: () => runAcceptanceBulk("accept"),
+          },
+          {
+            id: "bulk-decline-checkouts",
+            label: "Decline Selected",
+            icon: <X size={14} />,
+            variant: "destructive",
+            confirmTitle: `Decline ${selectedAcceptances.length} selected checkout(s)?`,
+            confirmDescription:
+              "Eligible pending hardware checkouts will be declined and checked back into available inventory.",
+            onExecute: () => runAcceptanceBulk("decline"),
+          },
+        ]}
+      />
+
       <div className="border rounded-xl bg-card overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={bulk.headerCheckState(visibleAcceptanceIds)}
+                  onCheckedChange={(checked) =>
+                    bulk.toggleAll(visibleAcceptanceIds, !!checked)
+                  }
+                  aria-label="Select all acceptances"
+                />
+              </TableHead>
               <TableHead>Item</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Assigned To</TableHead>
@@ -210,20 +287,27 @@ export default function AcceptancesPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
                   Loading acceptances...
                 </TableCell>
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground text-sm">
+                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground text-sm">
                   No checkout acceptance records found.
                 </TableCell>
               </TableRow>
             ) : (
               filtered.map((row) => (
                 <TableRow key={row._id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={bulk.isSelected(row._id)}
+                      onCheckedChange={(checked) => bulk.toggleOne(row._id, !!checked)}
+                      aria-label={`Select ${row.item_name}`}
+                    />
+                  </TableCell>
                   <TableCell className="text-xs font-medium">
                     {row.checkoutable_type === "Asset" ? (
                       <Link
@@ -340,13 +424,12 @@ export default function AcceptancesPage() {
             )}
             <div className="space-y-1.5">
               <Label htmlFor="acc-note">Notes</Label>
-              <textarea
+              <Textarea
                 id="acc-note"
                 rows={3}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Optional condition notes or reason..."
-                className="flex min-h-[72px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
             <DialogFooter>

@@ -12,9 +12,20 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ChevronDown, Loader2, Trash } from "lucide-react";
+import { ChevronDown, ClipboardList, Loader2, LogIn, RefreshCw, Trash } from "lucide-react";
 import * as React from "react";
 import Link from "next/link";
+import { BulkActionBar } from "@/components/BulkActionBar";
+import { executeBulkAction } from "@/lib/bulkClient";
+import { getClientErrorMessage } from "@/lib/errorMessages";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { usePermissions } from "@/hooks/usePermissions";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -51,13 +62,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
 
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExportButton } from "@/components/ExportButton";
@@ -107,6 +111,7 @@ export type Asset = {
 export function AssetsTable() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { permissions } = usePermissions();
   const searchParams = useSearchParams();
   const statusParam = searchParams ? searchParams.get("status") : null;
   const filterParam = searchParams ? searchParams.get("filter") : null;
@@ -121,6 +126,46 @@ export function AssetsTable() {
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  const [bulkStatusId, setBulkStatusId] = React.useState("");
+  const [bulkBusy, setBulkBusy] = React.useState(false);
+
+  const { data: statusOptions = [] } = useQuery<Array<{ _id: string; name: string }>>({
+    queryKey: ["status-list-minimal"],
+    queryFn: async () => {
+      const res = await axios.get("/api/settings/status");
+      return res.data.data || [];
+    },
+    enabled: permissions.canCreateEditAssets,
+  });
+
+  const handleBulkAssetAction = async (
+    action: "delete" | "checkin" | "status" | "request",
+    ids: string[],
+    payload?: Record<string, unknown>
+  ) => {
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    try {
+      const res = await executeBulkAction({ entity: "asset", action, ids, payload });
+      toast({ title: "Bulk Action Complete", description: res.message });
+      setRowSelection({});
+      setBulkStatusId("");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["assets"] }),
+        queryClient.invalidateQueries({ queryKey: ["counttotals"] }),
+        queryClient.invalidateQueries({ queryKey: ["status"] }),
+        queryClient.invalidateQueries({ queryKey: ["requests"] }),
+      ]);
+    } catch (err) {
+      toast({
+        title: "Bulk Action Failed",
+        description: getClientErrorMessage(err, "Unable to process selected assets."),
+        variant: "destructive",
+      });
+    } finally {
+      setBulkBusy(false);
+    }
+  };
 
   React.useEffect(() => {
     if (urlSearchParam !== null) {
@@ -354,52 +399,66 @@ export function AssetsTable() {
               : assigned.name || "")
           : undefined;
 
+        if (!permissions.canCheckoutCheckin && !permissions.canCreateEditAssets) {
+          return (
+            <Link href={`/requests?create=1&itemType=Asset&itemId=${id}`}>
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs">
+                <ClipboardList className="h-3.5 w-3.5" />
+                Request Item
+              </Button>
+            </Link>
+          );
+        }
+
         return (
           <div className="flex items-center gap-2">
-            {isAssigned ? (
-              <AssetCheckinDialog
-                assetId={id}
-                assetTag={row.original.asset_tag}
-                assetName={row.original.asset_name}
-                assignedToName={assignedName}
-              />
-            ) : (
-              <AssetCheckoutDialog
-                assetId={id}
-                assetTag={row.original.asset_tag}
-                assetName={row.original.asset_name}
-              />
-            )}
-            <AssetEditForm id={id} />
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  className="border text-red-500 hover:text-red-700"
-                >
-                  <Trash size={20} />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete
-                    this asset and remove its record.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-red-500 hover:bg-red-500 dark:text-white"
-                    onClick={() => handleDelete(id)}
+            {permissions.canCheckoutCheckin &&
+              (isAssigned ? (
+                <AssetCheckinDialog
+                  assetId={id}
+                  assetTag={row.original.asset_tag}
+                  assetName={row.original.asset_name}
+                  assignedToName={assignedName}
+                />
+              ) : (
+                <AssetCheckoutDialog
+                  assetId={id}
+                  assetTag={row.original.asset_tag}
+                  assetName={row.original.asset_name}
+                />
+              ))}
+            {permissions.canCreateEditAssets && <AssetEditForm id={id} />}
+            {permissions.canDeleteAssets && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="border text-red-500 hover:text-red-700"
                   >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                    <Trash size={20} />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete
+                      this asset and remove its record.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-red-500 hover:bg-red-500 dark:text-white"
+                      onClick={() => handleDelete(id)}
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         );
       },
@@ -573,6 +632,97 @@ export function AssetsTable() {
         </DropdownMenu>
         </div>
       </div>
+
+      {(() => {
+        const selectedRows = table.getFilteredSelectedRowModel().rows.map((r) => r.original);
+        const selectedIds = selectedRows.map((r) => r._id);
+        return (
+          <BulkActionBar
+            selectedCount={selectedRows.length}
+            entityLabel="asset"
+            onClearSelection={() => setRowSelection({})}
+            exportConfig={{
+              filename: "assets_selected",
+              sheetName: "Selected Assets",
+              data: selectedRows,
+              columns: assetExportColumns,
+            }}
+            extraContent={
+              permissions.canCreateEditAssets ? (
+                <div className="flex items-center gap-1.5">
+                  <Select value={bulkStatusId} onValueChange={setBulkStatusId}>
+                    <SelectTrigger className="h-8 w-[155px] text-xs bg-background">
+                      <SelectValue placeholder="Set status..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statusOptions.map((st) => (
+                        <SelectItem key={st._id} value={st._id} className="text-xs">
+                          {st.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={!bulkStatusId || bulkBusy}
+                    onClick={() =>
+                      void handleBulkAssetAction("status", selectedIds, { statusId: bulkStatusId })
+                    }
+                    className="h-8 text-xs gap-1"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Apply
+                  </Button>
+                </div>
+              ) : null
+            }
+            actions={[
+              ...(!permissions.canCreateEditAssets && permissions.canRequestItems
+                ? [
+                    {
+                      id: "bulk-request",
+                      label: "Request Selected",
+                      icon: <ClipboardList className="h-3.5 w-3.5" />,
+                      variant: "default" as const,
+                      disabled: bulkBusy,
+                      onExecute: () => handleBulkAssetAction("request", selectedIds),
+                    },
+                  ]
+                : []),
+              ...(permissions.canCheckoutCheckin
+                ? [
+                    {
+                      id: "bulk-checkin",
+                      label: "Checkin Assigned",
+                      icon: <LogIn className="h-3.5 w-3.5" />,
+                      variant: "outline" as const,
+                      disabled: bulkBusy,
+                      confirmTitle: "Check in selected assigned assets?",
+                      onExecute: () => handleBulkAssetAction("checkin", selectedIds),
+                    },
+                  ]
+                : []),
+              ...(permissions.canDeleteAssets
+                ? [
+                    {
+                      id: "bulk-delete",
+                      label: "Delete Selected",
+                      icon: <Trash className="h-3.5 w-3.5" />,
+                      variant: "destructive" as const,
+                      disabled: bulkBusy,
+                      confirmTitle: `Delete ${selectedRows.length} selected asset(s)?`,
+                      confirmDescription: "This action permanently deletes the selected assets.",
+                      onExecute: () => handleBulkAssetAction("delete", selectedIds),
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        );
+      })()}
+
       {isLoading ? (
         <div className="w-full h-full flex items-center justify-center">
           <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
