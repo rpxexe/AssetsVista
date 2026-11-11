@@ -9,13 +9,14 @@ import {
   Ban,
   CheckCircle2,
   ExternalLink,
-  Loader2,
   ShieldAlert,
   ShieldCheck,
   Trash2,
   UserCheck,
   Users,
 } from "lucide-react";
+import { Skeleton } from "skullet/react";
+import { SampleTableRows } from "@/components/skeletons/AppSkeletons";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -303,46 +304,48 @@ export function UserRolesTable() {
       )}
 
       {/* Role Summary KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {[
-          { key: "all", label: "All Users", value: summary?.total ?? 0, icon: Users },
-          { key: "admin", label: "Admins", value: summary?.admin ?? 0, icon: ShieldCheck },
-          {
-            key: "assets_user",
-            label: "Assets Users",
-            value: summary?.assets_user ?? 0,
-            icon: UserCheck,
-          },
-          {
-            key: "requester",
-            label: "Request Users",
-            value: summary?.requester ?? 0,
-            icon: Users,
-          },
-          { key: "suspended", label: "Suspended", value: summary?.suspended ?? 0, icon: Ban },
-        ].map((card) => {
-          const Icon = card.icon;
-          const active = roleFilter === card.key;
-          return (
-            <button
-              key={card.key}
-              type="button"
-              onClick={() => setRoleFilter(card.key)}
-              className={`p-3.5 rounded-xl border text-left transition-all ${
-                active
-                  ? "border-foreground bg-muted shadow-sm"
-                  : "bg-card hover:bg-accent/50"
-              }`}
-            >
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{card.label}</span>
-                <Icon className="h-3.5 w-3.5" />
-              </div>
-              <p className="text-2xl font-bold mt-1">{card.value}</p>
-            </button>
-          );
-        })}
-      </div>
+      <Skeleton id="user-roles-kpis" loading={isLoading} label="Loading role summary">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {[
+            { key: "all", label: "All Users", value: isLoading ? 12 : (summary?.total ?? 0), icon: Users },
+            { key: "admin", label: "Admins", value: isLoading ? 2 : (summary?.admin ?? 0), icon: ShieldCheck },
+            {
+              key: "assets_user",
+              label: "Assets Users",
+              value: isLoading ? 4 : (summary?.assets_user ?? 0),
+              icon: UserCheck,
+            },
+            {
+              key: "requester",
+              label: "Request Users",
+              value: isLoading ? 6 : (summary?.requester ?? 0),
+              icon: Users,
+            },
+            { key: "suspended", label: "Suspended", value: isLoading ? 0 : (summary?.suspended ?? 0), icon: Ban },
+          ].map((card) => {
+            const Icon = card.icon;
+            const active = roleFilter === card.key;
+            return (
+              <button
+                key={card.key}
+                type="button"
+                onClick={() => setRoleFilter(card.key)}
+                className={`p-3.5 rounded-xl border text-left transition-all ${
+                  active
+                    ? "border-foreground bg-muted shadow-sm"
+                    : "bg-card hover:bg-accent/50"
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{card.label}</span>
+                  <Icon className="h-3.5 w-3.5" />
+                </div>
+                <p className="text-2xl font-bold mt-1">{card.value}</p>
+              </button>
+            );
+          })}
+        </div>
+      </Skeleton>
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -443,13 +446,43 @@ export function UserRolesTable() {
       />
 
       {/* Table */}
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : isError ? (
-        <p className="text-center text-red-500 py-8">Failed to load user access records.</p>
-      ) : (
+      <Skeleton
+        id={`user-roles-table-${roleFilter}`}
+        loading={isLoading}
+        label="Loading user access records"
+        empty={!isLoading && !isError && filteredUsers.length === 0}
+        emptyMessage={
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox checked={false} disabled aria-label="Select all user accounts" />
+                  </TableHead>
+                  <TableHead>User Account</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Linked Directory Profile</TableHead>
+                  <TableHead>Last Login</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                    No matching user accounts found.
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        }
+        error={
+          !isLoading && isError ? (
+            <p className="text-center text-red-500 py-8">Failed to load user access records.</p>
+          ) : undefined
+        }
+      >
         <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
@@ -470,12 +503,11 @@ export function UserRolesTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredUsers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                    No matching user accounts found.
-                  </TableCell>
-                </TableRow>
+              {isLoading ? (
+                <SampleTableRows
+                  columns={["checkbox", "avatar", "badge", "badge", "text", "date", "actions"]}
+                  rowCount={5}
+                />
               ) : (
                 filteredUsers.map((u) => {
                   const isSelf = dbUser?._id === u._id;
@@ -639,7 +671,7 @@ export function UserRolesTable() {
             </TableBody>
           </Table>
         </div>
-      )}
+      </Skeleton>
     </div>
   );
 }

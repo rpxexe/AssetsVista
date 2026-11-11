@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { extractBearerToken } from "@/lib/apiKeyFormat";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/session";
 
 const PUBLIC_PAGE_PREFIXES = ["/login", "/sign-in", "/sign-up"];
@@ -24,9 +25,16 @@ export async function proxy(req: NextRequest) {
 
   const rawToken = req.cookies.get(SESSION_COOKIE_NAME)?.value;
   const session = await verifySessionToken(rawToken);
+  const isApiRoute = pathname.startsWith("/api/") || pathname === "/api";
 
   if (!session) {
-    if (pathname.startsWith("/api/") || pathname === "/api") {
+    if (isApiRoute) {
+      // Allow plausible AssetsVista Personal Access Tokens through to route handlers
+      // where Node crypto + MongoDB perform authoritative hash, expiry & RBAC verification.
+      const bearerToken = extractBearerToken(req.headers.get("authorization"));
+      if (bearerToken) {
+        return NextResponse.next();
+      }
       return NextResponse.json(
         { success: false, message: "Authentication required" },
         { status: 401 }

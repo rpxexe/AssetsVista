@@ -22,9 +22,10 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
-  Loader2,
   RefreshCw,
 } from "lucide-react";
+import { Skeleton } from "skullet/react";
+import { CalendarGridSkeleton } from "@/components/skeletons/AppSkeletons";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -217,68 +218,71 @@ export default function CalendarPage() {
                 <div key={d}>{d}</div>
               ))}
             </div>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-24 text-muted-foreground">
-                <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                Loading calendar...
-              </div>
-            ) : (
-              <div className="grid grid-cols-7 border-t border-l rounded-md overflow-hidden">
-                {calendarDays.map((day) => {
-                  const key = format(day, "yyyy-MM-dd");
-                  const dayEvents = eventsByDay.get(key) || [];
-                  const selected = isSameDay(day, selectedDay);
-                  const inMonth = isSameMonth(day, currentMonth);
-                  const today = isToday(day);
+            <Skeleton
+              id="calendar-monthly-grid"
+              loading={isLoading}
+              label="Loading monthly calendar"
+            >
+              {isLoading ? (
+                <CalendarGridSkeleton />
+              ) : (
+                <div className="grid grid-cols-7 border-t border-l rounded-md overflow-hidden">
+                  {calendarDays.map((day) => {
+                    const key = format(day, "yyyy-MM-dd");
+                    const dayEvents = eventsByDay.get(key) || [];
+                    const selected = isSameDay(day, selectedDay);
+                    const inMonth = isSameMonth(day, currentMonth);
+                    const today = isToday(day);
 
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setSelectedDay(day)}
-                      className={`min-h-[92px] p-1.5 border-r border-b text-left flex flex-col gap-1 transition-colors ${
-                        selected
-                          ? "bg-muted ring-1 ring-inset ring-foreground/40"
-                          : "hover:bg-muted/50"
-                      } ${!inMonth ? "opacity-45 bg-muted/20" : "bg-card"}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span
-                          className={`text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full ${
-                            today
-                              ? "bg-primary text-primary-foreground"
-                              : "text-foreground"
-                          }`}
-                        >
-                          {format(day, "d")}
-                        </span>
-                        {dayEvents.length > 0 && (
-                          <span className="text-[10px] text-muted-foreground font-mono">
-                            {dayEvents.length}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex flex-col gap-0.5 overflow-hidden">
-                        {dayEvents.slice(0, 2).map((ev) => (
-                          <div
-                            key={ev.id}
-                            className="truncate rounded px-1 py-0.5 text-[10px] bg-secondary text-secondary-foreground border border-border/60"
-                            title={ev.title}
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setSelectedDay(day)}
+                        className={`min-h-[92px] p-1.5 border-r border-b text-left flex flex-col gap-1 transition-colors ${
+                          selected
+                            ? "bg-muted ring-1 ring-inset ring-foreground/40"
+                            : "hover:bg-muted/50"
+                        } ${!inMonth ? "opacity-45 bg-muted/20" : "bg-card"}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span
+                            className={`text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full ${
+                              today
+                                ? "bg-primary text-primary-foreground"
+                                : "text-foreground"
+                            }`}
                           >
-                            {ev.title}
-                          </div>
-                        ))}
-                        {dayEvents.length > 2 && (
-                          <span className="text-[10px] text-muted-foreground pl-1">
-                            +{dayEvents.length - 2} more
+                            {format(day, "d")}
                           </span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+                          {dayEvents.length > 0 && (
+                            <span className="text-[10px] text-muted-foreground font-mono">
+                              {dayEvents.length}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-0.5 overflow-hidden">
+                          {dayEvents.slice(0, 2).map((ev) => (
+                            <div
+                              key={ev.id}
+                              className="truncate rounded px-1 py-0.5 text-[10px] bg-secondary text-secondary-foreground border border-border/60"
+                              title={ev.title}
+                            >
+                              {ev.title}
+                            </div>
+                          ))}
+                          {dayEvents.length > 2 && (
+                            <span className="text-[10px] text-muted-foreground pl-1">
+                              +{dayEvents.length - 2} more
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </Skeleton>
           </CardContent>
         </Card>
 
@@ -295,38 +299,59 @@ export default function CalendarPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-3 space-y-2 flex-1 max-h-[600px] overflow-y-auto">
-            {selectedDayEvents.length === 0 ? (
-              <div className="py-12 text-center text-xs text-muted-foreground">
-                Select a highlighted date on the grid or switch filter categories.
-              </div>
-            ) : (
-              selectedDayEvents.map((ev) => (
-                <Link
-                  key={ev.id}
-                  href={ev.href}
-                  className="block rounded-md border bg-background p-2.5 hover:bg-muted/60 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                          {ev.categoryLabel}
-                        </Badge>
-                        {ev.completed && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                            Completed
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs font-medium text-foreground break-words">
-                        {ev.title}
-                      </p>
+            <Skeleton
+              id="calendar-day-agenda"
+              loading={isLoading}
+              label="Loading day agenda"
+              empty={!isLoading && selectedDayEvents.length === 0}
+              emptyMessage={
+                <div className="py-12 text-center text-xs text-muted-foreground">
+                  Select a highlighted date on the grid or switch filter categories.
+                </div>
+              }
+            >
+              {isLoading ? (
+                <div className="space-y-2">
+                  {["Scheduled Asset Audit", "License Renewal Check"].map((sampleTitle) => (
+                    <div key={sampleTitle} className="rounded-md border bg-background p-2.5 space-y-1">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                        Maintenance
+                      </Badge>
+                      <p className="text-xs font-medium">{sampleTitle}</p>
                     </div>
-                    <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground mt-0.5" />
-                  </div>
-                </Link>
-              ))
-            )}
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {selectedDayEvents.map((ev) => (
+                    <Link
+                      key={ev.id}
+                      href={ev.href}
+                      className="block rounded-md border bg-background p-2.5 hover:bg-muted/60 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                              {ev.categoryLabel}
+                            </Badge>
+                            {ev.completed && (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                Completed
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs font-medium text-foreground break-words">
+                            {ev.title}
+                          </p>
+                        </div>
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground mt-0.5" />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </Skeleton>
           </CardContent>
         </Card>
       </div>

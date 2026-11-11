@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 
 import { Edit, Loader2 } from "lucide-react";
+import { Skeleton } from "skullet/react";
 import { useToast } from "@/hooks/use-toast";
 
 import { ApiResponse } from "@/types/ApiResponse";
@@ -140,7 +141,8 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
           <DialogHeader>
             <DialogTitle className="text-2xl">Update Asset Model</DialogTitle>
           </DialogHeader>
-          <Form {...form}>
+          <Skeleton id="edit-asset-model-form" loading={isFetching} label="Loading asset model details">
+            <Form {...form}>
             <form
               onSubmit={form.handleSubmit(onSubmit)}
               className="space-y-3 max-w-3xl mx-auto py-5"
@@ -227,8 +229,8 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
                     Cancel
                   </Button>
                 </DialogClose>
-                <Button type="submit" disabled={isFetching}>
-                  {isFetching ? (
+                <Button type="submit" disabled={isFetching || form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
                     "Update"
@@ -237,6 +239,7 @@ const AssetModelEditForm: React.FC<EditProps> = ({ id }) => {
               </DialogFooter>
             </form>
           </Form>
+          </Skeleton>
       </DialogContent>
     </Dialog>
   );

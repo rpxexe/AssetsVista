@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { SelectOptionsSkullet } from "@/components/skeletons/AppSkeletons";
 import {
   Select,
   SelectContent,
@@ -46,22 +46,15 @@ export function PeopleBox({
       <SelectContent>
         <ScrollArea className="h-48 w-full">
           <SelectGroup>
-            {isLoading ? (
-              <div className="w-full h-full flex items-center justify-center p-4">
-                <Loader2 className="animate-spin h-5 w-5" />
-              </div>
-            ) : isError ? (
-              <div className="w-full flex items-center justify-center p-2">
-                <p className="text-muted-foreground text-red-600 text-sm">
-                  Failed to fetch people
-                </p>
-              </div>
-            ) : people.length === 0 ? (
-              <div className="p-2 text-sm text-muted-foreground text-center">
-                No people found
-              </div>
-            ) : (
-              people.map((person) => {
+            <SelectOptionsSkullet
+              id="select-people"
+              isLoading={isLoading}
+              isError={isError}
+              errorText="Failed to fetch people"
+              isEmpty={!isLoading && !isError && people.length === 0}
+              emptyText="No people found"
+            >
+              {people.map((person) => {
                 const label =
                   person.first_name || person.last_name
                     ? `${person.first_name || ""} ${person.last_name || ""}`.trim()
@@ -72,8 +65,8 @@ export function PeopleBox({
                     {person.email ? ` (${person.email})` : ""}
                   </SelectItem>
                 );
-              })
-            )}
+              })}
+            </SelectOptionsSkullet>
           </SelectGroup>
         </ScrollArea>
       </SelectContent>

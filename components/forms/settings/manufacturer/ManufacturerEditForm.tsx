@@ -25,6 +25,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import axios, { AxiosError } from "axios";
 
 import { Edit, Loader2 } from "lucide-react";
+import { Skeleton } from "skullet/react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -153,7 +154,8 @@ const ManufacturerEditForm: React.FC<EditProps> = ({ id }) => {
           <DialogHeader>
             <DialogTitle className="text-2xl">Update Manufacturer</DialogTitle>
           </DialogHeader>
-          <Form {...form}>
+          <Skeleton id="edit-manufacturer-form" loading={isFetching} label="Loading manufacturer details">
+            <Form {...form}>
             <form
               onSubmit={form.handleSubmit(onSubmit)}
               className="space-y-3 max-w-3xl mx-auto py-5"
@@ -269,19 +271,20 @@ const ManufacturerEditForm: React.FC<EditProps> = ({ id }) => {
                     Cancel
                   </Button>
                 </DialogClose>
-                {isFetching ? (
+                {form.formState.isSubmitting ? (
                   <Button disabled>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Please wait
                   </Button>
                 ) : (
-                  <Button type="submit" disabled={isFetching}>
+                  <Button type="submit" disabled={isFetching || form.formState.isSubmitting}>
                     Update
                   </Button>
                 )}
               </DialogFooter>
             </form>
           </Form>
+          </Skeleton>
       </DialogContent>
     </Dialog>
   );

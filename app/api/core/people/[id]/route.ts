@@ -6,6 +6,8 @@ import { PeopleModel } from "@/models/Peoples.model";
 import { AssetModel } from "@/models/Assets.model";
 import { LicenseModel } from "@/models/Licenses.model";
 import { ActionLogModel } from "@/models/ActionLog.model";
+import { ApiKeyModel } from "@/models/ApiKey.model";
+import UserModel from "@/models/Users.model";
 import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -60,7 +62,7 @@ export async function GET(
     if (person.name) licenseQueries.push({ license_to_name: person.name });
     if (person.email) licenseQueries.push({ license_to_email: person.email });
 
-    const [assignedAssets, assignedLicenses, activityLogs] = await Promise.all([
+    const [assignedAssets, assignedLicenses, activityLogs, linkedUser] = await Promise.all([
       AssetModel.find({ userId: workspaceId, assigned_to: id })
         .populate([
           { path: "asset_model", select: "name model_no image" },
@@ -86,7 +88,34 @@ export async function GET(
         .limit(50)
         .populate("user", "name username email")
         .lean(),
+      UserModel.findOne({
+        $and: [
+          {
+            $or: [
+              { personId: person._id },
+              ...(person.email ? [{ email: person.email.trim().toLowerCase() }] : []),
+            ],
+          },
+          {
+            $or: [
+              { workspaceId },
+              { clerkId: workspaceId, workspaceId: { $exists: false } },
+            ],
+          },
+        ],
+      })
+        .select("_id role isActive")
+        .lean<{ _id: mongoose.Types.ObjectId; role?: string; isActive?: boolean } | null>(),
     ]);
+
+    const activeApiKeysCount = linkedUser?._id
+      ? await ApiKeyModel.countDocuments({
+          userId: linkedUser._id,
+          workspaceId,
+          revokedAt: null,
+          $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
+        })
+      : 0;
 
     // Calculate total purchase value of assigned equipment
     const totalAssetValue = assignedAssets.reduce(
@@ -106,6 +135,10 @@ export async function GET(
           assets_count: assignedAssets.length,
           licenses_count: assignedLicenses.length,
           total_asset_value: totalAssetValue,
+          user_id: linkedUser?._id ? linkedUser._id.toString() : null,
+          role: linkedUser?.role || null,
+          isActive: linkedUser ? linkedUser.isActive !== false : null,
+          active_api_keys_count: activeApiKeysCount,
         },
       },
       { status: 200 }

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "skullet/react";
 
 interface NeedsAttentionData {
   overdueAudits: number;
@@ -130,12 +131,18 @@ export function NeedsAttentionWidget() {
                       <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       <span className="truncate">{row.label}</span>
                     </span>
-                    <Badge
-                      variant={row.count > 0 ? "default" : "secondary"}
-                      className="min-w-[2rem] justify-center tabular-nums shrink-0 font-semibold"
+                    <Skeleton
+                      loading={isLoading}
+                      label={`Loading ${row.label} count`}
+                      className="shrink-0 rounded-full"
                     >
-                      {isLoading ? "…" : row.count}
-                    </Badge>
+                      <Badge
+                        variant={row.count > 0 ? "default" : "secondary"}
+                        className="min-w-[2rem] justify-center tabular-nums shrink-0 font-semibold"
+                      >
+                        {isLoading ? "00" : row.count}
+                      </Badge>
+                    </Skeleton>
                   </Link>
                 </li>
               );

@@ -144,7 +144,9 @@ export async function GET(req: NextRequest) {
       const modelSuffix = a.asset_model?.name || a.asset_name || "";
       const tagPrefix = a.asset_tag ? `#${a.asset_tag}` : "";
       const label = [tagPrefix, modelSuffix].filter(Boolean).join(" - ");
-      const assetHref = a.asset_tag
+      const assetHref = a._id
+        ? `/assets/view/${a._id}`
+        : a.asset_tag
         ? `/assets/listall?search=${encodeURIComponent(a.asset_tag)}`
         : "/assets/listall";
 

@@ -14,7 +14,6 @@ import {
   FilePieChart,
   Keyboard,
   LibraryBig,
-  Loader2,
   Microchip,
   Plus,
   RefreshCw,
@@ -23,6 +22,8 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import { Skeleton } from "skullet/react";
+import { SampleTableRows } from "@/components/skeletons/AppSkeletons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -81,7 +82,7 @@ function getItemHref(entry: ActivityEntry): string {
   const q = entry.item_name ? `?search=${encodeURIComponent(entry.item_name)}` : "";
   switch (entry.item_type) {
     case "Asset":
-      return `/assets/listall${q}`;
+      return entry.item_id ? `/assets/view/${entry.item_id}` : `/assets/listall${q}`;
     case "License":
       return `/licenses${q}`;
     case "Accessory":
@@ -224,15 +225,17 @@ export function RecentActivityWidget() {
             />
 
             <div className="max-h-[300px] overflow-auto border rounded-xl">
-              {isLoading ? (
-                <div className="flex items-center justify-center py-14">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="py-10 text-center text-xs text-muted-foreground">
-                  No recent activity recorded in this workspace.
-                </div>
-              ) : (
+              <Skeleton
+                id="dashboard-recent-activity"
+                loading={isLoading}
+                label="Loading recent activity"
+                empty={!isLoading && filtered.length === 0}
+                emptyMessage={
+                  <div className="py-10 text-center text-xs text-muted-foreground">
+                    No recent activity recorded in this workspace.
+                  </div>
+                }
+              >
                 <Table>
                   <TableHeader>
                     <TableRow className="text-xs">
@@ -251,57 +254,64 @@ export function RecentActivityWidget() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {visibleLogs.map((row) => {
-                      const Icon = getItemIcon(row.item_type);
-                      const ts = row.createdAt || row.created_at;
-                      return (
-                        <TableRow key={row._id} className="text-xs">
-                          <TableCell>
-                            <Checkbox
-                              checked={bulk.isSelected(row._id)}
-                              onCheckedChange={(c) => bulk.toggleOne(row._id, !!c)}
-                              aria-label={`Select activity ${row.item_name || row._id}`}
-                            />
-                          </TableCell>
-                          <TableCell className="text-muted-foreground whitespace-nowrap">
-                            {ts ? format(new Date(ts), "dd MMM HH:mm") : "-"}
-                          </TableCell>
-                          <TableCell className="truncate max-w-[110px]">
-                            {row.admin_name || "Admin"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-[10px] capitalize font-normal">
-                              {row.action_type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="max-w-[190px]">
-                            <Link
-                              href={getItemHref(row)}
-                              className="inline-flex items-center gap-1.5 font-medium hover:underline truncate max-w-full"
-                            >
-                              <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                              <span className="truncate">{row.item_name || row.item_type}</span>
-                            </Link>
-                          </TableCell>
-                          <TableCell className="max-w-[130px] truncate text-muted-foreground">
-                            {row.target_type === "People" && row.target_id ? (
+                    {isLoading ? (
+                      <SampleTableRows
+                        columns={["checkbox", "date", "text", "badge", "text", "text"]}
+                        rowCount={5}
+                      />
+                    ) : (
+                      visibleLogs.map((row) => {
+                        const Icon = getItemIcon(row.item_type);
+                        const ts = row.createdAt || row.created_at;
+                        return (
+                          <TableRow key={row._id} className="text-xs">
+                            <TableCell>
+                              <Checkbox
+                                checked={bulk.isSelected(row._id)}
+                                onCheckedChange={(c) => bulk.toggleOne(row._id, !!c)}
+                                aria-label={`Select activity ${row.item_name || row._id}`}
+                              />
+                            </TableCell>
+                            <TableCell className="text-muted-foreground whitespace-nowrap">
+                              {ts ? format(new Date(ts), "dd MMM HH:mm") : "-"}
+                            </TableCell>
+                            <TableCell className="truncate max-w-[110px]">
+                              {row.admin_name || "Admin"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-[10px] capitalize font-normal">
+                                {row.action_type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="max-w-[190px]">
                               <Link
-                                href={`/people/${row.target_id}`}
-                                className="hover:text-foreground hover:underline inline-flex items-center gap-1"
+                                href={getItemHref(row)}
+                                className="inline-flex items-center gap-1.5 font-medium hover:underline truncate max-w-full"
                               >
-                                <User className="h-3 w-3 shrink-0" />
-                                <span className="truncate">{row.target_name || "Person"}</span>
+                                <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                <span className="truncate">{row.item_name || row.item_type}</span>
                               </Link>
-                            ) : (
-                              row.target_name || "-"
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                            </TableCell>
+                            <TableCell className="max-w-[130px] truncate text-muted-foreground">
+                              {row.target_type === "People" && row.target_id ? (
+                                <Link
+                                  href={`/people/${row.target_id}`}
+                                  className="hover:text-foreground hover:underline inline-flex items-center gap-1"
+                                >
+                                  <User className="h-3 w-3 shrink-0" />
+                                  <span className="truncate">{row.target_name || "Person"}</span>
+                                </Link>
+                              ) : (
+                                row.target_name || "-"
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
                   </TableBody>
                 </Table>
-              )}
+              </Skeleton>
             </div>
           </div>
         )}

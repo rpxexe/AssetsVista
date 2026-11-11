@@ -18,6 +18,8 @@ export interface People extends Document {
   end_date?: Date;
   notes?: string;
   image?: string;
+  deletedAt?: Date | null;
+  deletedBy?: string | null;
 }
 
 const PeopleSchema: Schema<People> = new Schema(
@@ -88,6 +90,16 @@ const PeopleSchema: Schema<People> = new Schema(
       type: String,
       trim: true,
     },
+    deletedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    deletedBy: {
+      type: String,
+      default: null,
+      trim: true,
+    },
   },
   {
     timestamps: true,
@@ -97,6 +109,7 @@ const PeopleSchema: Schema<People> = new Schema(
 );
 
 PeopleSchema.index({ userId: 1, createdAt: -1 });
+PeopleSchema.index({ userId: 1, deletedAt: 1, createdAt: -1 });
 PeopleSchema.index({ userId: 1, username: 1 }, { unique: true });
 PeopleSchema.index({ userId: 1, end_date: 1 });
 PeopleSchema.index({ createdAt: -1 });
@@ -105,6 +118,26 @@ PeopleSchema.index({ email: 1 });
 PeopleSchema.index({ department: 1 });
 PeopleSchema.index({ location: 1 });
 PeopleSchema.index({ company: 1 });
+
+PeopleSchema.pre(
+  ["find", "findOne", "findOneAndUpdate", "countDocuments", "distinct"],
+  function () {
+    const filter = this.getFilter();
+    const opts = this.getOptions() as { includeDeleted?: boolean } | undefined;
+    if (filter && filter.deletedAt === undefined && !opts?.includeDeleted) {
+      this.where({ deletedAt: null });
+    }
+  }
+);
+
+PeopleSchema.pre("aggregate", function () {
+  const pipeline = this.pipeline();
+  const first = pipeline[0] as Record<string, any> | undefined;
+  if (first && first.$match && first.$match.deletedAt !== undefined) {
+    return;
+  }
+  pipeline.unshift({ $match: { deletedAt: null } });
+});
 
 export const PeopleModel: Model<People> = defineModel<People>(
   "People",

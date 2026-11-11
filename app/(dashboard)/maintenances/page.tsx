@@ -53,6 +53,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { executeBulkAction } from "@/lib/bulkClient";
 import { getClientErrorMessage } from "@/lib/errorMessages";
 import type { ExportColumnDef } from "@/lib/exportData";
+import { Skeleton } from "skullet/react";
+import { SampleTableRows, SelectOptionsSkullet } from "@/components/skeletons/AppSkeletons";
 
 interface MaintenanceRow {
   _id: string;
@@ -126,7 +128,7 @@ export default function MaintenancesPage() {
     },
   });
 
-  const { data: assets = [] } = useQuery<
+  const { data: assets = [], isLoading: isLoadingAssets } = useQuery<
     Array<{ _id: string; asset_tag?: string; asset_name?: string }>
   >({
     queryKey: ["assets", "minimal-list"],
@@ -137,7 +139,7 @@ export default function MaintenancesPage() {
     enabled: dialogOpen,
   });
 
-  const { data: suppliers = [] } = useQuery<Array<{ _id: string; name?: string }>>({
+  const { data: suppliers = [], isLoading: isLoadingSuppliers } = useQuery<Array<{ _id: string; name?: string }>>({
     queryKey: ["suppliers", "minimal-list"],
     queryFn: async () => {
       const res = await axios.get("/api/settings/supplier");
@@ -332,12 +334,14 @@ export default function MaintenancesPage() {
                     <SelectValue placeholder="Select an asset..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {assets.map((a) => (
-                      <SelectItem key={a._id} value={a._id}>
-                        {a.asset_tag ? `#${a.asset_tag} - ` : ""}
-                        {a.asset_name || "Unnamed Asset"}
-                      </SelectItem>
-                    ))}
+                    <SelectOptionsSkullet id="maintenance-assets-select" isLoading={isLoadingAssets}>
+                      {assets.map((a) => (
+                        <SelectItem key={a._id} value={a._id}>
+                          {a.asset_tag ? `#${a.asset_tag} - ` : ""}
+                          {a.asset_name || "Unnamed Asset"}
+                        </SelectItem>
+                      ))}
+                    </SelectOptionsSkullet>
                   </SelectContent>
                 </Select>
               </div>
@@ -366,12 +370,14 @@ export default function MaintenancesPage() {
                       <SelectValue placeholder="Optional supplier" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {suppliers.map((s) => (
-                        <SelectItem key={s._id} value={s._id}>
-                          {s.name}
-                        </SelectItem>
-                      ))}
+                      <SelectOptionsSkullet id="maintenance-suppliers-select" isLoading={isLoadingSuppliers}>
+                        <SelectItem value="none">None</SelectItem>
+                        {suppliers.map((s) => (
+                          <SelectItem key={s._id} value={s._id}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectOptionsSkullet>
                     </SelectContent>
                   </Select>
                 </div>
@@ -539,134 +545,171 @@ export default function MaintenancesPage() {
       />
 
       <div className="border rounded-xl bg-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10">
-                <Checkbox
-                  checked={bulk.headerCheckState(visibleMaintenanceIds)}
-                  onCheckedChange={(checked) =>
-                    bulk.toggleAll(visibleMaintenanceIds, !!checked)
-                  }
-                  aria-label="Select all maintenance records"
+        <Skeleton
+          id={`maintenances-table-${statusTab}`}
+          loading={isLoading}
+          label="Loading maintenance logs"
+          empty={!isLoading && filtered.length === 0}
+          emptyMessage={
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox checked={false} disabled aria-label="Select all maintenance records" />
+                  </TableHead>
+                  <TableHead>Asset</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Supplier</TableHead>
+                  <TableHead>Start</TableHead>
+                  <TableHead>Due</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Cost</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell colSpan={10} className="text-center py-12 text-muted-foreground text-sm">
+                    No maintenance records found.
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          }
+        >
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={bulk.headerCheckState(visibleMaintenanceIds)}
+                    onCheckedChange={(checked) =>
+                      bulk.toggleAll(visibleMaintenanceIds, !!checked)
+                    }
+                    aria-label="Select all maintenance records"
+                  />
+                </TableHead>
+                <TableHead>Asset</TableHead>
+                <TableHead>Title</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Supplier</TableHead>
+                <TableHead>Start</TableHead>
+                <TableHead>Due</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Cost</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <SampleTableRows
+                  columns={[
+                    "checkbox",
+                    "text",
+                    "subtext",
+                    "badge",
+                    "text",
+                    "date",
+                    "date",
+                    "badge",
+                    "number",
+                    "actions",
+                  ]}
+                  rowCount={6}
                 />
-              </TableHead>
-              <TableHead>Asset</TableHead>
-              <TableHead>Title</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Supplier</TableHead>
-              <TableHead>Start</TableHead>
-              <TableHead>Due</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Cost</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
-                  Loading maintenance logs...
-                </TableCell>
-              </TableRow>
-            ) : filtered.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={10} className="text-center py-12 text-muted-foreground text-sm">
-                  No maintenance records found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filtered.map((row) => {
-                const overdue = isOverdue(row);
-                return (
-                  <TableRow key={row._id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={bulk.isSelected(row._id)}
-                        onCheckedChange={(checked) => bulk.toggleOne(row._id, !!checked)}
-                        aria-label={`Select ${row.title}`}
-                      />
-                    </TableCell>
-                    <TableCell className="text-xs font-medium">
-                      {row.asset?._id ? (
-                        <Link
-                          href={`/assets/view/${row.asset._id}`}
-                          className="hover:underline text-foreground"
-                        >
-                          {row.asset.asset_tag ? `#${row.asset.asset_tag} ` : ""}
-                          {row.asset.asset_name || "Asset"}
-                        </Link>
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      <div className="font-medium text-foreground">{row.title}</div>
-                      {row.is_warranty && (
-                        <span className="text-[10px] text-muted-foreground">Warranty</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      <Badge variant="outline">{row.maintenance_type}</Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {row.supplier?.name || "—"}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {row.start_date ? format(new Date(row.start_date), "MMM d, yyyy") : "—"}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {row.expected_completion_date
-                        ? format(new Date(row.expected_completion_date), "MMM d, yyyy")
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {row.completed_at ? (
-                        <Badge variant="secondary">Completed</Badge>
-                      ) : overdue ? (
-                        <Badge variant="default">Overdue</Badge>
-                      ) : (
-                        <Badge variant="outline">Open</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs text-right font-mono">
-                      ${Number(row.cost || 0).toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="inline-flex items-center gap-1">
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          className="h-7 w-7"
-                          disabled={busyId === row._id}
-                          title={row.completed_at ? "Reopen maintenance" : "Mark completed"}
-                          onClick={() => handleToggleComplete(row)}
-                        >
-                          {row.completed_at ? (
-                            <RotateCcw className="h-3.5 w-3.5" />
-                          ) : (
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                          )}
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          className="h-7 w-7"
-                          disabled={busyId === row._id}
-                          title="Delete maintenance"
-                          onClick={() => handleDelete(row._id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                filtered.map((row) => {
+                  const overdue = isOverdue(row);
+                  return (
+                    <TableRow key={row._id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={bulk.isSelected(row._id)}
+                          onCheckedChange={(checked) => bulk.toggleOne(row._id, !!checked)}
+                          aria-label={`Select ${row.title}`}
+                        />
+                      </TableCell>
+                      <TableCell className="text-xs font-medium">
+                        {row.asset?._id ? (
+                          <Link
+                            href={`/assets/view/${row.asset._id}`}
+                            className="hover:underline text-foreground"
+                          >
+                            {row.asset.asset_tag ? `#${row.asset.asset_tag} ` : ""}
+                            {row.asset.asset_name || "Asset"}
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <div className="font-medium text-foreground">{row.title}</div>
+                        {row.is_warranty && (
+                          <span className="text-[10px] text-muted-foreground">Warranty</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <Badge variant="outline">{row.maintenance_type}</Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {row.supplier?.name || "—"}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {row.start_date ? format(new Date(row.start_date), "MMM d, yyyy") : "—"}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {row.expected_completion_date
+                          ? format(new Date(row.expected_completion_date), "MMM d, yyyy")
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {row.completed_at ? (
+                          <Badge variant="secondary">Completed</Badge>
+                        ) : overdue ? (
+                          <Badge variant="default">Overdue</Badge>
+                        ) : (
+                          <Badge variant="outline">Open</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs text-right font-mono">
+                        ${Number(row.cost || 0).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="inline-flex items-center gap-1">
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-7 w-7"
+                            disabled={busyId === row._id}
+                            title={row.completed_at ? "Reopen maintenance" : "Mark completed"}
+                            onClick={() => handleToggleComplete(row)}
+                          >
+                            {row.completed_at ? (
+                              <RotateCcw className="h-3.5 w-3.5" />
+                            ) : (
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-7 w-7"
+                            disabled={busyId === row._id}
+                            title="Delete maintenance"
+                            onClick={() => handleDelete(row._id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </Skeleton>
       </div>
     </div>
   );

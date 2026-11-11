@@ -8,6 +8,7 @@ import axios from "axios";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { CalendarIcon, Loader2, SquarePen } from "lucide-react";
+import { Skeleton } from "skullet/react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -147,7 +148,13 @@ export function AccessoryEditForm({ id }: AccessoryEditFormProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setIsFetching(next);
+        setOpen(next);
+      }}
+    >
       <DialogTrigger asChild>
         <Button size="icon" variant="outline" className="border">
           <SquarePen size={18} />
@@ -162,11 +169,7 @@ export function AccessoryEditForm({ id }: AccessoryEditFormProps) {
           <DialogDescription>Update details for this accessory.</DialogDescription>
         </DialogHeader>
 
-        {isFetching ? (
-          <div className="flex justify-center items-center py-12">
-            <Loader2 className="animate-spin h-6 w-6 text-muted-foreground" />
-          </div>
-        ) : (
+        <Skeleton id="edit-accessory-form" loading={isFetching} label="Loading accessory details">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="max-h-[60vh] overflow-y-auto pr-2">
@@ -395,7 +398,7 @@ export function AccessoryEditForm({ id }: AccessoryEditFormProps) {
               </DialogFooter>
             </form>
           </Form>
-        )}
+        </Skeleton>
       </DialogContent>
     </Dialog>
   );

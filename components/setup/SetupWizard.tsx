@@ -46,6 +46,8 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { getClientErrorMessage } from "@/lib/errorMessages";
+import { Skeleton } from "skullet/react";
+import { SampleTableRows } from "@/components/skeletons/AppSkeletons";
 
 interface PreflightItem {
   ok: boolean;
@@ -442,45 +444,59 @@ export function SetupWizard() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="border rounded-xl overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Check</TableHead>
-                  <TableHead>Setting / Detail</TableHead>
-                  <TableHead className="text-right">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {checkingPreflight && preflightItems.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground text-sm">
-                      <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
-                      Checking environment...
-                    </TableCell>
-                  </TableRow>
-                ) : preflightItems.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground text-sm">
-                      Unable to load pre-flight diagnostics.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  preflightItems.map((item) => (
-                    <TableRow key={item.label}>
-                      <TableCell className="text-xs font-medium">{item.label}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground font-mono">
-                        {item.detail}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant={item.ok ? "secondary" : "destructive"} className="text-[11px]">
-                          {item.ok ? "OK" : "Action Needed"}
-                        </Badge>
+            <Skeleton
+              id="setup-preflight-table"
+              loading={checkingPreflight && preflightItems.length === 0}
+              label="Checking environment diagnostics"
+              empty={!(checkingPreflight && preflightItems.length === 0) && preflightItems.length === 0}
+              emptyMessage={
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Check</TableHead>
+                      <TableHead>Setting / Detail</TableHead>
+                      <TableHead className="text-right">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground text-sm">
+                        Unable to load pre-flight diagnostics.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  </TableBody>
+                </Table>
+              }
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Check</TableHead>
+                    <TableHead>Setting / Detail</TableHead>
+                    <TableHead className="text-right">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {checkingPreflight && preflightItems.length === 0 ? (
+                    <SampleTableRows columns={["text", "mono", "badge"]} rowCount={5} />
+                  ) : (
+                    preflightItems.map((item) => (
+                      <TableRow key={item.label}>
+                        <TableCell className="text-xs font-medium">{item.label}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground font-mono">
+                          {item.detail}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant={item.ok ? "secondary" : "destructive"} className="text-[11px]">
+                            {item.ok ? "OK" : "Action Needed"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </Skeleton>
           </div>
 
           {statusData?.counts && (

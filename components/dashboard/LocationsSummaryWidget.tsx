@@ -11,7 +11,6 @@ import {
   Droplets,
   Keyboard,
   LibraryBig,
-  Loader2,
   MapPin,
   Microchip,
   RefreshCw,
@@ -19,6 +18,8 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { Skeleton } from "skullet/react";
+import { SampleTableRows } from "@/components/skeletons/AppSkeletons";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkActionBar } from "@/components/BulkActionBar";
@@ -178,15 +179,17 @@ export function LocationsSummaryWidget() {
             />
 
             <div className="max-h-[300px] overflow-auto border rounded-xl">
-              {isLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : rows.length === 0 ? (
-                <div className="py-10 text-center text-xs text-muted-foreground">
-                  No locations found.
-                </div>
-              ) : (
+              <Skeleton
+                id="dashboard-locations-summary"
+                loading={isLoading}
+                label="Loading locations summary"
+                empty={!isLoading && rows.length === 0}
+                emptyMessage={
+                  <div className="py-10 text-center text-xs text-muted-foreground">
+                    No locations found.
+                  </div>
+                }
+              >
                 <Table>
                   <TableHeader>
                     <TableRow className="text-xs">
@@ -239,35 +242,51 @@ export function LocationsSummaryWidget() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((loc) => (
-                      <TableRow key={loc._id} className="text-xs">
-                        <TableCell>
-                          <Checkbox
-                            checked={bulk.isSelected(loc._id)}
-                            onCheckedChange={(c) => bulk.toggleOne(loc._id, !!c)}
-                            aria-label={`Select ${loc.name}`}
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium truncate max-w-[160px]">
-                          <Link
-                            href={`/settings/location`}
-                            className="hover:underline inline-flex items-center gap-1.5"
-                          >
-                            <span className="h-2 w-2 rounded-sm bg-primary/70 shrink-0" />
-                            <span className="truncate">{loc.name}</span>
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-center tabular-nums">{loc.assets_count}</TableCell>
-                        <TableCell className="text-center tabular-nums">{loc.assigned_assets_count}</TableCell>
-                        <TableCell className="text-center tabular-nums">{loc.accessories_count}</TableCell>
-                        <TableCell className="text-center tabular-nums">{loc.consumables_count}</TableCell>
-                        <TableCell className="text-center tabular-nums">{loc.components_count}</TableCell>
-                        <TableCell className="text-center tabular-nums">{loc.people_count}</TableCell>
-                      </TableRow>
-                    ))}
+                    {isLoading ? (
+                      <SampleTableRows
+                        columns={[
+                          "checkbox",
+                          "text",
+                          "number",
+                          "number",
+                          "number",
+                          "number",
+                          "number",
+                          "number",
+                        ]}
+                        rowCount={5}
+                      />
+                    ) : (
+                      rows.map((loc) => (
+                        <TableRow key={loc._id} className="text-xs">
+                          <TableCell>
+                            <Checkbox
+                              checked={bulk.isSelected(loc._id)}
+                              onCheckedChange={(c) => bulk.toggleOne(loc._id, !!c)}
+                              aria-label={`Select ${loc.name}`}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium truncate max-w-[160px]">
+                            <Link
+                              href={`/settings/location`}
+                              className="hover:underline inline-flex items-center gap-1.5"
+                            >
+                              <span className="h-2 w-2 rounded-sm bg-primary/70 shrink-0" />
+                              <span className="truncate">{loc.name}</span>
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-center tabular-nums">{loc.assets_count}</TableCell>
+                          <TableCell className="text-center tabular-nums">{loc.assigned_assets_count}</TableCell>
+                          <TableCell className="text-center tabular-nums">{loc.accessories_count}</TableCell>
+                          <TableCell className="text-center tabular-nums">{loc.consumables_count}</TableCell>
+                          <TableCell className="text-center tabular-nums">{loc.components_count}</TableCell>
+                          <TableCell className="text-center tabular-nums">{loc.people_count}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
-              )}
+              </Skeleton>
             </div>
           </div>
         )}

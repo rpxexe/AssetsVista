@@ -37,6 +37,8 @@ import {
   exportToCsv,
   type ExportColumnDef,
 } from "@/lib/exportData";
+import { Skeleton } from "skullet/react";
+import { SampleTableRows } from "@/components/skeletons/AppSkeletons";
 
 export default function MaintenanceReportPage() {
   const [activeTab, setActiveTab] = useState<"due_audit" | "overdue_checkins" | "recent_audits">(
@@ -257,36 +259,42 @@ export default function MaintenanceReportPage() {
       </div>
 
       {/* KPI Cards Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="border rounded-2xl p-4 bg-card">
-          <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Due for Audit</span>
-            <ShieldCheck className="h-4 w-4 text-amber-500" />
+      <Skeleton id="maintenance-report-kpis" loading={isLoading} label="Loading audit metrics">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="border rounded-2xl p-4 bg-card">
+            <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
+              <span>Due for Audit</span>
+              <ShieldCheck className="h-4 w-4 text-amber-500" />
+            </div>
+            <p className="text-3xl font-bold mt-2 text-amber-500">
+              {isLoading ? 8 : summary.due_for_audit_count}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">assets requiring physical verification</p>
           </div>
-          <p className="text-3xl font-bold mt-2 text-amber-500">{summary.due_for_audit_count}</p>
-          <p className="text-xs text-muted-foreground mt-1">assets requiring physical verification</p>
-        </div>
 
-        <div className="border rounded-2xl p-4 bg-card">
-          <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Overdue Returns</span>
-            <AlertCircle className="h-4 w-4 text-red-500" />
+          <div className="border rounded-2xl p-4 bg-card">
+            <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
+              <span>Overdue Returns</span>
+              <AlertCircle className="h-4 w-4 text-red-500" />
+            </div>
+            <p className="text-3xl font-bold mt-2 text-red-500">
+              {isLoading ? 3 : summary.overdue_checkin_count}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">past expected checkin date</p>
           </div>
-          <p className="text-3xl font-bold mt-2 text-red-500">{summary.overdue_checkin_count}</p>
-          <p className="text-xs text-muted-foreground mt-1">past expected checkin date</p>
-        </div>
 
-        <div className="border rounded-2xl p-4 bg-card">
-          <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Audits Recorded</span>
-            <History className="h-4 w-4 text-purple-600" />
+          <div className="border rounded-2xl p-4 bg-card">
+            <div className="flex justify-between text-muted-foreground text-xs uppercase font-medium">
+              <span>Audits Recorded</span>
+              <History className="h-4 w-4 text-purple-600" />
+            </div>
+            <p className="text-3xl font-bold mt-2 text-purple-600 dark:text-purple-400">
+              {isLoading ? 24 : summary.total_audits_logged}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">verified physical audits</p>
           </div>
-          <p className="text-3xl font-bold mt-2 text-purple-600 dark:text-purple-400">
-            {summary.total_audits_logged}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">verified physical audits</p>
         </div>
-      </div>
+      </Skeleton>
 
       {/* Tabs */}
       <div className="flex gap-2 border-b">
@@ -330,13 +338,42 @@ export default function MaintenanceReportPage() {
       />
 
       {/* Tab Content */}
-      {isLoading ? (
-        <div className="flex justify-center items-center py-16">
-          <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
-        </div>
-      ) : error ? (
-        <p className="text-center text-red-500 py-8">Failed to load maintenance data.</p>
-      ) : activeTab === "due_audit" ? (
+      <Skeleton
+        id={`maintenance-report-${activeTab}`}
+        loading={isLoading}
+        label="Loading maintenance and audit records"
+        error={
+          !isLoading && error ? (
+            <p className="text-center text-red-500 py-8">Failed to load maintenance data.</p>
+          ) : undefined
+        }
+      >
+        {isLoading ? (
+          <div className="rounded-2xl border overflow-x-auto bg-card">
+            <Table className="min-w-max w-full">
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox checked={false} disabled aria-label="Select all records" />
+                  </TableHead>
+                  <TableHead>Asset Tag</TableHead>
+                  <TableHead>Asset Name</TableHead>
+                  <TableHead>Model</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Last Audit</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <SampleTableRows
+                  columns={["checkbox", "mono", "text", "text", "text", "badge", "date", "actions"]}
+                  rowCount={5}
+                />
+              </TableBody>
+            </Table>
+          </div>
+        ) : activeTab === "due_audit" ? (
         <div className="rounded-2xl border overflow-x-auto bg-card">
           <Table className="min-w-max w-full">
             <TableHeader className="bg-muted/50">
@@ -537,6 +574,7 @@ export default function MaintenanceReportPage() {
           </Table>
         </div>
       )}
+      </Skeleton>
     </div>
   );
 }

@@ -12,9 +12,9 @@ import {
   ClipboardList,
   HardDriveUpload,
   Laptop,
-  Loader2,
   Plus,
 } from "lucide-react";
+import { Skeleton } from "skullet/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -166,11 +166,13 @@ export function RequesterDashboardView() {
 
               <div className="absolute inset-0 grid place-items-center pointer-events-none">
                 <span className="text-[2.4em] font-semibold tabular-nums">
-                  {isLoading ? (
-                    <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
-                  ) : (
-                    item.count
-                  )}
+                  <Skeleton
+                    id={`requester-kpi-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+                    loading={isLoading}
+                    label={`Loading ${item.title}`}
+                  >
+                    <span>{isLoading ? "12" : item.count}</span>
+                  </Skeleton>
                 </span>
               </div>
             </div>
@@ -196,61 +198,82 @@ export function RequesterDashboardView() {
             </Link>
           </CardHeader>
           <CardContent className="pt-4">
-            {isLoading ? (
-              <div className="flex justify-center py-10">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : !data?.recentRequests?.length ? (
-              <div className="text-center py-10 space-y-3">
-                <ClipboardList className="h-8 w-8 mx-auto text-muted-foreground" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">No item requests yet</p>
-                  <p className="text-xs text-muted-foreground">
-                    Need a laptop, monitor, accessory, or license? Submit a request in one click.
-                  </p>
-                </div>
-                <Link href="/requests?create=1">
-                  <Button size="sm" className="gap-1.5">
-                    <Plus className="h-4 w-4" />
-                    Submit First Request
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {data.recentRequests.map((req) => (
-                  <div
-                    key={req._id}
-                    className="flex items-center justify-between gap-3 rounded-xl border bg-background px-4 py-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {req.item_tag ? `#${req.item_tag} - ` : ""}
-                        {req.item_name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {req.item_type} · Qty {req.quantity}
-                        {req.createdAt
-                          ? ` · ${format(new Date(req.createdAt), "MMM d, yyyy")}`
-                          : ""}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={
-                        req.status === "pending"
-                          ? "default"
-                          : req.status === "fulfilled"
-                          ? "secondary"
-                          : "outline"
-                      }
-                      className="capitalize shrink-0"
-                    >
-                      {req.status}
-                    </Badge>
+            <Skeleton
+              id="requester-recent-requests"
+              loading={isLoading}
+              label="Loading recent item requests"
+              empty={!isLoading && !data?.recentRequests?.length}
+              emptyMessage={
+                <div className="text-center py-10 space-y-3">
+                  <ClipboardList className="h-8 w-8 mx-auto text-muted-foreground" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">No item requests yet</p>
+                    <p className="text-xs text-muted-foreground">
+                      Need a laptop, monitor, accessory, or license? Submit a request in one click.
+                    </p>
                   </div>
-                ))}
+                  <Link href="/requests?create=1">
+                    <Button size="sm" className="gap-1.5">
+                      <Plus className="h-4 w-4" />
+                      Submit First Request
+                    </Button>
+                  </Link>
+                </div>
+              }
+            >
+              <div className="space-y-2.5">
+                {isLoading
+                  ? [
+                      { name: "#AST-014 - MacBook Pro 16", meta: "Asset · Qty 1 · Oct 24, 2026", status: "pending" },
+                      { name: "Dell UltraSharp 27 Monitor", meta: "Accessory · Qty 1 · Oct 22, 2026", status: "fulfilled" },
+                      { name: "JetBrains All Products Pack", meta: "License · Qty 1 · Oct 18, 2026", status: "fulfilled" },
+                    ].map((sample, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between gap-3 rounded-xl border bg-background px-4 py-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{sample.name}</p>
+                          <p className="text-xs text-muted-foreground">{sample.meta}</p>
+                        </div>
+                        <Badge variant="outline" className="capitalize shrink-0">
+                          {sample.status}
+                        </Badge>
+                      </div>
+                    ))
+                  : data?.recentRequests?.map((req) => (
+                      <div
+                        key={req._id}
+                        className="flex items-center justify-between gap-3 rounded-xl border bg-background px-4 py-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {req.item_tag ? `#${req.item_tag} - ` : ""}
+                            {req.item_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {req.item_type} · Qty {req.quantity}
+                            {req.createdAt
+                              ? ` · ${format(new Date(req.createdAt), "MMM d, yyyy")}`
+                              : ""}
+                          </p>
+                        </div>
+                        <Badge
+                          variant={
+                            req.status === "pending"
+                              ? "default"
+                              : req.status === "fulfilled"
+                              ? "secondary"
+                              : "outline"
+                          }
+                          className="capitalize shrink-0"
+                        >
+                          {req.status}
+                        </Badge>
+                      </div>
+                    ))}
               </div>
-            )}
+            </Skeleton>
           </CardContent>
         </Card>
 
@@ -288,45 +311,65 @@ export function RequesterDashboardView() {
               </div>
             )}
 
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : !data?.assignedAssets?.length ? (
-              <div className="text-center py-8 space-y-2">
-                <CheckCircle2 className="h-7 w-7 mx-auto text-muted-foreground" />
-                <p className="text-sm font-medium">No equipment currently assigned</p>
-                <p className="text-xs text-muted-foreground">
-                  Assigned assets will appear here once checked out by your Assets team.
-                </p>
-              </div>
-            ) : (
+            <Skeleton
+              id="requester-assigned-assets"
+              loading={isLoading}
+              label="Loading assigned equipment"
+              empty={!isLoading && !data?.assignedAssets?.length}
+              emptyMessage={
+                <div className="text-center py-8 space-y-2">
+                  <CheckCircle2 className="h-7 w-7 mx-auto text-muted-foreground" />
+                  <p className="text-sm font-medium">No equipment currently assigned</p>
+                  <p className="text-xs text-muted-foreground">
+                    Assigned assets will appear here once checked out by your Assets team.
+                  </p>
+                </div>
+              }
+            >
               <div className="space-y-2.5">
-                {data.assignedAssets.map((asset) => (
-                  <Link
-                    key={asset._id}
-                    href={`/assets/view/${asset._id}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border bg-background px-4 py-3 hover:bg-muted/40 transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {asset.asset_tag ? `#${asset.asset_tag} - ` : ""}
-                        {asset.asset_name}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {asset.asset_model?.name || "Asset"}
-                        {asset.serial_number ? ` · SN: ${asset.serial_number}` : ""}
-                      </p>
-                    </div>
-                    {asset.status?.name && (
-                      <Badge variant="outline" className="text-[11px] shrink-0">
-                        {asset.status.name}
-                      </Badge>
-                    )}
-                  </Link>
-                ))}
+                {isLoading
+                  ? [
+                      { name: "#AST-014 - MacBook Pro 16", meta: "Apple M3 Pro · SN: C02XYZ123", status: "Deployed" },
+                      { name: "#AST-089 - Dell UltraSharp", meta: "U2723QE 4K · SN: DL987654", status: "Deployed" },
+                    ].map((sample, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between gap-3 rounded-xl border bg-background px-4 py-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{sample.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{sample.meta}</p>
+                        </div>
+                        <Badge variant="outline" className="text-[11px] shrink-0">
+                          {sample.status}
+                        </Badge>
+                      </div>
+                    ))
+                  : data?.assignedAssets?.map((asset) => (
+                      <Link
+                        key={asset._id}
+                        href={`/assets/view/${asset._id}`}
+                        className="flex items-center justify-between gap-3 rounded-xl border bg-background px-4 py-3 hover:bg-muted/40 transition-colors"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {asset.asset_tag ? `#${asset.asset_tag} - ` : ""}
+                            {asset.asset_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {asset.asset_model?.name || "Asset"}
+                            {asset.serial_number ? ` · SN: ${asset.serial_number}` : ""}
+                          </p>
+                        </div>
+                        {asset.status?.name && (
+                          <Badge variant="outline" className="text-[11px] shrink-0">
+                            {asset.status.name}
+                          </Badge>
+                        )}
+                      </Link>
+                    ))}
               </div>
-            )}
+            </Skeleton>
           </CardContent>
         </Card>
       </div>

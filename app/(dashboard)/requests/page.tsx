@@ -1,10 +1,16 @@
 "use client";
 
-import React, { Suspense, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import axios from "axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Skeleton, SkeletonSuspense } from "skullet/react";
+import {
+  SampleTableRows,
+  SelectOptionsSkullet,
+  TablePageSkeleton,
+} from "@/components/skeletons/AppSkeletons";
 import { format } from "date-fns";
 import { Check, ClipboardList, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -136,7 +142,7 @@ function RequestsPageContent() {
     enabled: dialogOpen,
   });
 
-  const { data: people = [] } = useQuery<
+  const { data: people = [], isLoading: isLoadingPeople } = useQuery<
     Array<{ _id: string; name?: string; first_name?: string; last_name?: string }>
   >({
     queryKey: ["people", "minimal-list"],
@@ -332,16 +338,18 @@ function RequestsPageContent() {
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {catalogItems.map((item) => {
-                      const label = item.asset_tag
-                        ? `#${item.asset_tag} - ${item.asset_name || "Asset"}`
-                        : item.name || item.asset_name || "Unnamed";
-                      return (
-                        <SelectItem key={item._id} value={item._id}>
-                          {label}
-                        </SelectItem>
-                      );
-                    })}
+                    <SelectOptionsSkullet id={`request-catalog-${itemType}`} isLoading={isLoadingCatalog}>
+                      {catalogItems.map((item) => {
+                        const label = item.asset_tag
+                          ? `#${item.asset_tag} - ${item.asset_name || "Asset"}`
+                          : item.name || item.asset_name || "Unnamed";
+                        return (
+                          <SelectItem key={item._id} value={item._id}>
+                            {label}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectOptionsSkullet>
                   </SelectContent>
                 </Select>
               </div>
@@ -354,14 +362,16 @@ function RequestsPageContent() {
                       <SelectValue placeholder="Current signed-in user" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="self">Current Signed-In User</SelectItem>
-                      {people.map((p) => (
-                        <SelectItem key={p._id} value={p._id}>
-                          {p.name ||
-                            [p.first_name, p.last_name].filter(Boolean).join(" ") ||
-                            "User"}
-                        </SelectItem>
-                      ))}
+                      <SelectOptionsSkullet id="request-people-select" isLoading={isLoadingPeople}>
+                        <SelectItem value="self">Current Signed-In User</SelectItem>
+                        {people.map((p) => (
+                          <SelectItem key={p._id} value={p._id}>
+                            {p.name ||
+                              [p.first_name, p.last_name].filter(Boolean).join(" ") ||
+                              "User"}
+                          </SelectItem>
+                        ))}
+                      </SelectOptionsSkullet>
                     </SelectContent>
                   </Select>
                 </div>
@@ -478,136 +488,171 @@ function RequestsPageContent() {
       />
 
       <div className="border rounded-xl bg-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10">
-                <Checkbox
-                  checked={bulk.headerCheckState(visibleRequestIds)}
-                  onCheckedChange={(checked) => bulk.toggleAll(visibleRequestIds, !!checked)}
-                  aria-label="Select all requests"
+        <Skeleton
+          id={`requests-table-${statusTab}`}
+          loading={isLoading}
+          label="Loading checkout requests"
+          empty={!isLoading && filtered.length === 0}
+          emptyMessage={
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox checked={false} disabled aria-label="Select all requests" />
+                  </TableHead>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Requester</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Requested</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-12 text-muted-foreground text-sm">
+                    No requests found.
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          }
+        >
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={bulk.headerCheckState(visibleRequestIds)}
+                    onCheckedChange={(checked) => bulk.toggleAll(visibleRequestIds, !!checked)}
+                    aria-label="Select all requests"
+                  />
+                </TableHead>
+                <TableHead>Item</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Requester</TableHead>
+                <TableHead>Qty</TableHead>
+                <TableHead>Requested</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Notes</TableHead>
+                <TableHead className="text-right">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <SampleTableRows
+                  columns={[
+                    "checkbox",
+                    "text",
+                    "badge",
+                    "text",
+                    "number",
+                    "date",
+                    "badge",
+                    "text",
+                    "actions",
+                  ]}
+                  rowCount={6}
                 />
-              </TableHead>
-              <TableHead>Item</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Requester</TableHead>
-              <TableHead>Qty</TableHead>
-              <TableHead>Requested</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Notes</TableHead>
-              <TableHead className="text-right">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
-                  Loading requests...
-                </TableCell>
-              </TableRow>
-            ) : filtered.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-12 text-muted-foreground text-sm">
-                  No requests found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filtered.map((row) => (
-                <TableRow key={row._id}>
-                  <TableCell>
-                    <Checkbox
-                      checked={bulk.isSelected(row._id)}
-                      onCheckedChange={(checked) => bulk.toggleOne(row._id, !!checked)}
-                      aria-label={`Select request ${row.item_name}`}
-                    />
-                  </TableCell>
-                  <TableCell className="text-xs font-medium">
-                    {row.item_type === "Asset" ? (
-                      <Link
-                        href={`/assets/view/${row.item_id}`}
-                        className="hover:underline text-foreground"
+              ) : (
+                filtered.map((row) => (
+                  <TableRow key={row._id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={bulk.isSelected(row._id)}
+                        onCheckedChange={(checked) => bulk.toggleOne(row._id, !!checked)}
+                        aria-label={`Select request ${row.item_name}`}
+                      />
+                    </TableCell>
+                    <TableCell className="text-xs font-medium">
+                      {row.item_type === "Asset" ? (
+                        <Link
+                          href={`/assets/view/${row.item_id}`}
+                          className="hover:underline text-foreground"
+                        >
+                          {row.item_tag ? `#${row.item_tag} - ` : ""}
+                          {row.item_name}
+                        </Link>
+                      ) : (
+                        <span>
+                          {row.item_tag ? `#${row.item_tag} - ` : ""}
+                          {row.item_name}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <Badge variant="outline">{row.item_type}</Badge>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {row.requester?._id ? (
+                        <Link href={`/people/${row.requester._id}`} className="hover:underline">
+                          {row.requester.name || row.requester_name}
+                        </Link>
+                      ) : (
+                        row.requester_name
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs font-mono">{row.quantity}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {row.createdAt ? format(new Date(row.createdAt), "MMM d, yyyy") : "—"}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <Badge
+                        variant={
+                          row.status === "pending"
+                            ? "default"
+                            : row.status === "fulfilled"
+                            ? "secondary"
+                            : "outline"
+                        }
+                        className="capitalize"
                       >
-                        {row.item_tag ? `#${row.item_tag} - ` : ""}
-                        {row.item_name}
-                      </Link>
-                    ) : (
-                      <span>
-                        {row.item_tag ? `#${row.item_tag} - ` : ""}
-                        {row.item_name}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    <Badge variant="outline">{row.item_type}</Badge>
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    {row.requester?._id ? (
-                      <Link href={`/people/${row.requester._id}`} className="hover:underline">
-                        {row.requester.name || row.requester_name}
-                      </Link>
-                    ) : (
-                      row.requester_name
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs font-mono">{row.quantity}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {row.createdAt ? format(new Date(row.createdAt), "MMM d, yyyy") : "—"}
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    <Badge
-                      variant={
-                        row.status === "pending"
-                          ? "default"
-                          : row.status === "fulfilled"
-                          ? "secondary"
-                          : "outline"
-                      }
-                      className="capitalize"
-                    >
-                      {row.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground max-w-[220px] truncate">
-                    {row.notes || "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {row.status === "pending" ? (
-                      <div className="inline-flex items-center gap-1">
-                        {permissions.canFulfillRequests && (
+                        {row.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground max-w-[220px] truncate">
+                      {row.notes || "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {row.status === "pending" ? (
+                        <div className="inline-flex items-center gap-1">
+                          {permissions.canFulfillRequests && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={busyId === row._id}
+                              className="h-7 px-2 text-xs gap-1"
+                              onClick={() => handleAction(row._id, "fulfill")}
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                              Fulfill
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
                             disabled={busyId === row._id}
                             className="h-7 px-2 text-xs gap-1"
-                            onClick={() => handleAction(row._id, "fulfill")}
+                            onClick={() => handleAction(row._id, "cancel")}
                           >
-                            <Check className="h-3.5 w-3.5" />
-                            Fulfill
+                            <X className="h-3.5 w-3.5" />
+                            Cancel
                           </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={busyId === row._id}
-                          className="h-7 px-2 text-xs gap-1"
-                          onClick={() => handleAction(row._id, "cancel")}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                          Cancel
-                        </Button>
-                      </div>
-                    ) : (
-                      <span className="text-[11px] text-muted-foreground capitalize">
-                        {row.status}
-                      </span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground capitalize">
+                          {row.status}
+                        </span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </Skeleton>
       </div>
     </div>
   );
@@ -615,15 +660,20 @@ function RequestsPageContent() {
 
 export default function RequestsPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    <SkeletonSuspense
+      id="requests-page-suspense"
+      label="Loading requests page"
+      skeleton={
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          <TablePageSkeleton
+            title="Checkout Requests"
+            columns={["checkbox", "text", "badge", "text", "number", "date", "badge", "text", "actions"]}
+          />
         </div>
       }
     >
       <RequestsPageContent />
-    </Suspense>
+    </SkeletonSuspense>
   );
 }
 

@@ -257,7 +257,7 @@ async function buildSearchIndex(workspaceId: string): Promise<IndexedDocument[]>
       badge: a.status?.name || "Asset",
       subtitle: subtitleParts.join(" • "),
       meta: a.department?.name || a.company?.name,
-      href: `/assets/listall?search=${encodeURIComponent(a.asset_tag)}`,
+      href: `/assets/view/${a._id.toString()}`,
       fields: [
         { name: "asset_tag", value: a.asset_tag || "", weight: 4.5 },
         { name: "serial_number", value: a.serial_number || "", weight: 4.0 },

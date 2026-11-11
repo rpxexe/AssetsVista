@@ -1,37 +1,40 @@
 "use client";
 
-import React, { Suspense } from "react";
+import React from "react";
+import { SkeletonSuspense } from "skullet/react";
 import AssetForm from "@/components/forms/Assets/AssetForm";
 import { AssetsTable } from "@/components/tables/assets";
+import { TablePageSkeleton } from "@/components/skeletons/AppSkeletons";
 import { usePermissions } from "@/hooks/usePermissions";
-import { LibraryBig, Loader2 } from "lucide-react";
+import { LibraryBig } from "lucide-react";
 
 const Assets = () => {
   const { permissions } = usePermissions();
 
   return (
-    <div className="p-3 min-h-screen">
-      <div className="border rounded-[2.5em] h-full p-4 w-full flex items-center space-x-2">
+    <div className="p-4 pt-0 space-y-4">
+      <div className="border rounded-[2.5em] p-4 w-full flex items-center space-x-2">
         <LibraryBig strokeWidth={2.2} size={30} />
         <h3 className="text-3xl font-semibold">All Assets</h3>
       </div>
       {permissions.canCreateEditAssets && (
-        <div className="flex justify-end mt-4">
+        <div className="flex justify-end">
           <AssetForm />
         </div>
       )}
-      <div className="min-h-min grid grid-cols-1 md:grid-cols-1 gap-4 auto-rows-min">
-        <div className="h-full">
-          <Suspense
-            fallback={
-              <div className="w-full flex items-center justify-center p-8">
-                <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
-              </div>
+      <div className="grid grid-cols-1 gap-4">
+        <SkeletonSuspense
+            id="assets-page-suspense"
+            label="Loading assets"
+            skeleton={
+              <TablePageSkeleton
+                title="Assets"
+                columns={["checkbox", "thumb", "mono", "text", "mono", "text", "number", "badge", "text", "actions"]}
+              />
             }
           >
             <AssetsTable />
-          </Suspense>
-        </div>
+          </SkeletonSuspense>
       </div>
     </div>
   );

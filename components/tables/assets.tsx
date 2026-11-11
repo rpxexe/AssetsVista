@@ -5,17 +5,17 @@ import {
   ColumnFiltersState,
   SortingState,
   VisibilityState,
-  flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ChevronDown, ClipboardList, Loader2, LogIn, RefreshCw, Trash } from "lucide-react";
+import { ChevronDown, ClipboardList, LogIn, RefreshCw, Trash } from "lucide-react";
 import * as React from "react";
 import Link from "next/link";
 import { BulkActionBar } from "@/components/BulkActionBar";
+import { DataTableSkullet } from "@/components/skeletons/AppSkeletons";
 import { executeBulkAction } from "@/lib/bulkClient";
 import { getClientErrorMessage } from "@/lib/errorMessages";
 import {
@@ -36,14 +36,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
 import { useSearchParams } from "next/navigation";
@@ -152,9 +144,11 @@ export function AssetsTable() {
       setBulkStatusId("");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["assets"] }),
+        queryClient.invalidateQueries({ queryKey: ["deleted-assets"] }),
         queryClient.invalidateQueries({ queryKey: ["counttotals"] }),
         queryClient.invalidateQueries({ queryKey: ["status"] }),
         queryClient.invalidateQueries({ queryKey: ["requests"] }),
+        queryClient.invalidateQueries({ queryKey: ["asset-sidebar-counts"] }),
       ]);
     } catch (err) {
       toast({
@@ -202,8 +196,10 @@ export function AssetsTable() {
         variant: "destructive",
       });
       queryClient.invalidateQueries({ queryKey: ["assets"] });
+      queryClient.invalidateQueries({ queryKey: ["deleted-assets"] });
       queryClient.invalidateQueries({ queryKey: ["counttotals"] });
       queryClient.invalidateQueries({ queryKey: ["status"] });
+      queryClient.invalidateQueries({ queryKey: ["asset-sidebar-counts"] });
     } catch (error) {
       console.error("Error deleting asset:", error);
       toast({
@@ -255,13 +251,25 @@ export function AssetsTable() {
       accessorKey: "asset_tag",
       header: "Asset Tag",
       cell: ({ row }) => (
-        <div className="uppercase">{row.getValue("asset_tag")}</div>
+        <Link
+          href={`/assets/view/${row.original._id}`}
+          className="uppercase font-mono font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          {row.getValue("asset_tag")}
+        </Link>
       ),
     },
     {
       accessorKey: "asset_name",
       header: "Name",
-      cell: ({ row }) => <div>{row.getValue("asset_name")}</div>,
+      cell: ({ row }) => (
+        <Link
+          href={`/assets/view/${row.original._id}`}
+          className="font-medium hover:underline text-foreground"
+        >
+          {row.getValue("asset_name")}
+        </Link>
+      ),
     },
     {
       accessorKey: "serial_number",
@@ -309,14 +317,19 @@ export function AssetsTable() {
           displayName = "Assigned";
         }
 
-        return (
+        const badge = (
           <Badge
             variant="secondary"
-            className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200"
+            className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 hover:opacity-90"
           >
             {displayName} ({assignedType || "Person"})
           </Badge>
         );
+
+        if (assignedType === "People" && assigned._id) {
+          return <Link href={`/people/${assigned._id}`}>{badge}</Link>;
+        }
+        return badge;
       },
     },
     {
@@ -441,10 +454,9 @@ export function AssetsTable() {
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogTitle>Move asset to Deleted Trash?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete
-                      this asset and remove its record.
+                      This will unassign the asset and move it to Assets &gt; Deleted, where you can restore or permanently purge it.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -723,66 +735,16 @@ export function AssetsTable() {
         );
       })()}
 
-      {isLoading ? (
-        <div className="w-full h-full flex items-center justify-center">
-          <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
-        </div>
-      ) : error ? (
-        <p className="text-center text-red-500">
-          Error while fetching the data
-        </p>
-      ) : (
-        <div className="rounded-md border overflow-x-auto">
-          <Table className="min-w-max w-full">
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => {
-                    return (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                      </TableHead>
-                    );
-                  })}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center"
-                  >
-                    No results.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <DataTableSkullet
+        id="assets-table"
+        isLoading={isLoading}
+        isError={Boolean(error)}
+        errorMessage="Error while fetching the data"
+        label="Loading assets"
+        table={table}
+        colSpan={columns.length}
+        emptyText="No results."
+      />
       <div className="flex items-center justify-end space-x-2 py-4">
         <div className="flex-1 text-sm text-muted-foreground">
           {table.getFilteredSelectedRowModel().rows.length} of{" "}
