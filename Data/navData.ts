@@ -1,8 +1,11 @@
 import {
   BadgeCheck,
+  CalendarDays,
   ChartColumnBig,
   CheckCheck,
   CircleEllipsis,
+  ClipboardCheck,
+  ClipboardList,
   Droplets,
   FileArchive,
   FileChartPie,
@@ -11,15 +14,14 @@ import {
   LayoutDashboard,
   LibraryBig,
   List,
-  ListRestart,
   Microchip,
   MonitorSmartphone,
   Rocket,
   Settings2,
   ShieldEllipsis,
   ShieldX,
-  ShoppingBag,
   Users,
+  Wrench,
   X,
 } from "lucide-react";
 
@@ -29,6 +31,11 @@ export const data = {
       name: "Dashboard",
       url: "/admin",
       icon: LayoutDashboard,
+    },
+    {
+      name: "Calendar",
+      url: "/calendar",
+      icon: CalendarDays,
     },
   ],
   navAsset: [
@@ -92,6 +99,21 @@ export const data = {
           title: "Due for Checkin",
           url: "/assets/listall?filter=due_checkin",
           icon: ShieldEllipsis,
+        },
+        {
+          title: "Maintenances",
+          url: "/maintenances",
+          icon: Wrench,
+        },
+        {
+          title: "Acceptances",
+          url: "/acceptances",
+          icon: ClipboardCheck,
+        },
+        {
+          title: "Requests",
+          url: "/requests",
+          icon: ClipboardList,
         },
       ],
     },
@@ -174,7 +196,7 @@ export const data = {
         },
         {
           title: "Unaccepted Asset",
-          url: "/assets/listall?status=Pending",
+          url: "/acceptances",
         },
         {
           title: "Accessory Report",

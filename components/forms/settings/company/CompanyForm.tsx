@@ -28,7 +28,6 @@ import { useToast } from "@/hooks/use-toast";
 import { ApiResponse } from "@/types/ApiResponse";
 import { useState } from "react";
 import { Loader2, PlusIcon } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQueryClient } from "@tanstack/react-query";
 import { ImageUploadField } from "@/components/ImageUploadField";
 const formSchema = z.object({
@@ -93,8 +92,7 @@ const CompanyForm = () => {
           Add Company
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl">Create Company</DialogTitle>
           </DialogHeader>
@@ -166,7 +164,6 @@ const CompanyForm = () => {
               </DialogFooter>
             </form>
           </Form>
-        </ScrollArea>
       </DialogContent>
     </Dialog>
   );}

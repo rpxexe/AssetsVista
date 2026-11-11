@@ -89,6 +89,7 @@ const ConsumableSchema: Schema<Consumable> = new Schema(
   }
 );
 
+ConsumableSchema.index({ userId: 1, createdAt: -1 });
 ConsumableSchema.index({ createdAt: -1 });
 ConsumableSchema.index({ name: 1 });
 ConsumableSchema.index({ company: 1 });

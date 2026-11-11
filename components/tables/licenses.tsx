@@ -14,6 +14,8 @@ import {
 } from "@tanstack/react-table";
 import { ChevronDown, Loader2, Trash } from "lucide-react";
 import * as React from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -89,6 +91,8 @@ export type License = {
 export function LicenseTable() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const statusParam = searchParams ? searchParams.get("status") : null;
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -108,9 +112,12 @@ export function LicenseTable() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["licenses"], // Unique cache key
+    queryKey: ["licenses", statusParam],
     queryFn: async () => {
-      const response = await axios.get("/api/core/license");
+      const url = statusParam
+        ? `/api/core/license?status=${encodeURIComponent(statusParam)}`
+        : "/api/core/license";
+      const response = await axios.get(url);
       return response.data.data;
     },
   });
@@ -405,6 +412,19 @@ export function LicenseTable() {
           }
           className="max-w-sm"
         />
+        {statusParam && (
+          <div className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-2.5 py-1 text-xs">
+            <span className="font-medium text-foreground capitalize">
+              Filter: {statusParam === "expiring" ? "Expiring Soon" : statusParam}
+            </span>
+            <Link
+              href="/licenses"
+              className="text-muted-foreground hover:text-foreground underline ml-1"
+            >
+              Reset
+            </Link>
+          </div>
+        )}
         <div className="flex items-center gap-2 ml-auto">
           <ExportButton
             filename="licenses_inventory"

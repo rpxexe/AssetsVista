@@ -1,9 +1,12 @@
 "use client";
 
 import RadialGraph from "@/components/graphs/RadialGraph";
-import { CategoryTable } from "@/components/tables/categories";
-import { LocationTable } from "@/components/tables/locations";
-import { SupplierTable } from "@/components/tables/supplier";
+import { RecentActivityWidget } from "@/components/dashboard/RecentActivityWidget";
+import { TodayCalendarWidget } from "@/components/dashboard/TodayCalendarWidget";
+import { LowInventoryWidget } from "@/components/dashboard/LowInventoryWidget";
+import { NeedsAttentionWidget } from "@/components/dashboard/NeedsAttentionWidget";
+import { LocationsSummaryWidget } from "@/components/dashboard/LocationsSummaryWidget";
+import { CategoriesSummaryWidget } from "@/components/dashboard/CategoriesSummaryWidget";
 import axios from "axios";
 import {
   Droplets,
@@ -267,27 +270,38 @@ export default function Page() {
           </div>
         ))}
       </div>
-      <div className="min-h-min grid grid-cols-1 md:grid-cols-[1.433fr,1fr] gap-4 auto-rows-min">
-        <div className=" border rounded-[2.5em] h-full p-5">
-          <h3 className="text-2xl font-medium">Assets Categories</h3>
-          <CategoryTable />
+      {/* Row 1: Recent Activity (Left 8 cols) + Today & Up Next (Right 4 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+        <div className="lg:col-span-8">
+          <RecentActivityWidget />
         </div>
-        <div className="border rounded-[2.5em] h-full p-5">
-          <h3 className="text-2xl font-medium">Assets by Status</h3>
-          <div className="flex items-center justify-center w-full">
+        <div className="lg:col-span-4">
+          <TodayCalendarWidget />
+        </div>
+      </div>
+
+      {/* Row 2: Assets by Status (4 cols) + Low Inventory (4 cols) + Needs Attention (4 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+        <div className="lg:col-span-4 border rounded-[2em] bg-card p-5 flex flex-col justify-between h-full">
+          <div className="flex items-center justify-between pb-3 border-b">
+            <h4 className="font-semibold text-base">Assets by Status</h4>
+          </div>
+          <div className="flex items-center justify-center w-full flex-1 pt-2">
             <RadialGraph />
           </div>
         </div>
+        <div className="lg:col-span-4">
+          <LowInventoryWidget />
+        </div>
+        <div className="lg:col-span-4">
+          <NeedsAttentionWidget />
+        </div>
       </div>
-      <div className="min-h-min grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-min">
-        <div className=" border rounded-[2.5em] h-full p-5">
-          <h3 className="text-2xl font-medium">Locations</h3>
-          <LocationTable />
-        </div>
-        <div className="border rounded-[2.5em] h-full p-5">
-          <h3 className="text-2xl font-medium">Suppliers</h3>
-          <SupplierTable />
-        </div>
+
+      {/* Row 3: Locations Summary (Left 6 cols) + Categories Summary (Right 6 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+        <LocationsSummaryWidget />
+        <CategoriesSummaryWidget />
       </div>
     </div>
   );

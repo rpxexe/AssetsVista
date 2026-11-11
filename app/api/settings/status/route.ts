@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     return apiErrorResponse(error, "Error while creating status.", "Error while creating status:");
   }
 }
-export async function GET() {
+export async function GET(req: NextRequest) {
   await dbconnect();
   try {
     const workspaceId = await getWorkspaceUserId();
@@ -45,6 +45,9 @@ export async function GET() {
         { status: 401 }
       );
     }
+
+    const { searchParams } = new URL(req.url);
+    const groupBy = searchParams.get("groupBy"); // "name" (default) | "type"
 
     const [statuses, assetCounts] = await Promise.all([
       StatusModel.find({ userId: workspaceId }).sort({ createdAt: -1 }).lean(),
@@ -63,6 +66,38 @@ export async function GET() {
       ...status,
       assets: countMap.get(status._id.toString()) || 0,
     }));
+
+    if (groupBy === "type") {
+      const buckets: Record<string, number> = {
+        Deployable: 0,
+        Pending: 0,
+        Undeployable: 0,
+        Archived: 0,
+      };
+      const labelMap: Record<string, string> = {
+        deployable: "Deployable",
+        pending: "Pending",
+        undeployable: "Undeployable",
+        archived: "Archived",
+      };
+      for (const st of statuswithassets) {
+        const key = labelMap[String(st.type || "deployable").toLowerCase()] || "Deployable";
+        buckets[key] = (buckets[key] || 0) + Number(st.assets || 0);
+      }
+      const grouped = Object.entries(buckets).map(([name, assets]) => ({
+        name,
+        type: name.toLowerCase(),
+        assets,
+      }));
+      return Response.json(
+        {
+          success: true,
+          message: "Status Fetched successfully",
+          data: grouped,
+        },
+        { status: 200 }
+      );
+    }
 
     return Response.json(
       {

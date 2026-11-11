@@ -13,6 +13,7 @@ export interface License extends Document {
   license_to_email?: string;
   seats: number;
   seats_available?: number;
+  min_amt?: number;
   expiry_date?: Date;
   order_number?: string;
   purchase_date?: Date;
@@ -69,6 +70,11 @@ const LicenseSchema: Schema<License> = new Schema(
       type: Number,
       default: 1,
     },
+    min_amt: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     license_to_name: {
       type: String,
       trim: true,
@@ -105,6 +111,7 @@ const LicenseSchema: Schema<License> = new Schema(
   }
 );
 
+LicenseSchema.index({ userId: 1, expiry_date: 1 });
 LicenseSchema.index({ createdAt: -1 });
 LicenseSchema.index({ expiry_date: 1 });
 LicenseSchema.index({ license_to_name: 1 });

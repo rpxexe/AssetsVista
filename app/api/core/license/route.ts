@@ -4,6 +4,7 @@ import { invalidateElasticIndexCache } from "@/lib/elasticSearch";
 import { getWorkspaceUserId } from "@/lib/serverAuth";
 import { ActionLogModel } from "@/models/ActionLog.model";
 import { LicenseModel } from "@/models/Licenses.model";
+import { SettingsModel } from "@/models/Settings.model";
 import { CategoryModel } from "@/models/setting/Categories.model";
 import { CompanyModel } from "@/models/setting/Companies.model";
 import { ManufacturerModel } from "@/models/setting/Manufacturers.model";
@@ -90,6 +91,7 @@ export async function POST(req: Request) {
       license_to_email: body.license_to_email,
       seats: seatsCount,
       seats_available: seatsCount,
+      min_amt: body.min_amt !== undefined ? Number(body.min_amt) : 0,
       expiry_date: body.expiry_date ? new Date(body.expiry_date) : undefined,
       order_number: body.order_number,
       purchase_date: body.purchase_date
@@ -141,8 +143,21 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search");
+    const statusParam = searchParams.get("status");
 
     const filter: Record<string, any> = { userId: workspaceId };
+    if (statusParam === "expiring") {
+      const settings = await SettingsModel.findOne({ userId: workspaceId })
+        .select("alert_interval")
+        .lean<{ alert_interval?: number } | null>();
+      const windowDays = Math.max(1, Number(settings?.alert_interval || 30));
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const endWindow = new Date(todayStart);
+      endWindow.setDate(endWindow.getDate() + windowDays);
+      endWindow.setHours(23, 59, 59, 999);
+      filter.expiry_date = { $gte: todayStart, $lte: endWindow };
+    }
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: "i" } },

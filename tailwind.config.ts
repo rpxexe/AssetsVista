@@ -10,9 +10,15 @@ export default {
   theme: {
   	extend: {
   		fontFamily: {
-  			poppins: [
-  				'Poppins',
-  				'SansSerif'
+  			sans: [
+  				'var(--font-plus-jakarta-sans)',
+  				'Plus Jakarta Sans',
+  				'sans-serif'
+  			],
+  			jakarta: [
+  				'var(--font-plus-jakarta-sans)',
+  				'Plus Jakarta Sans',
+  				'sans-serif'
   			]
   		},
   		animation: {

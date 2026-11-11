@@ -14,6 +14,7 @@ import {
 } from "@tanstack/react-table";
 import { ChevronDown, Loader2, Trash } from "lucide-react";
 import * as React from "react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -108,6 +109,8 @@ export function AssetsTable() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const statusParam = searchParams ? searchParams.get("status") : null;
+  const filterParam = searchParams ? searchParams.get("filter") : null;
+  const pastEolParam = searchParams ? searchParams.get("past_eol") : null;
   const urlSearchParam = searchParams ? searchParams.get("search") : null;
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -130,11 +133,14 @@ export function AssetsTable() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["assets", statusParam], // Invalidate when status filter changes
+    queryKey: ["assets", statusParam, filterParam, pastEolParam],
     queryFn: async () => {
-      const url = statusParam
-        ? `/api/core/asset?status=${encodeURIComponent(statusParam)}`
-        : "/api/core/asset";
+      const params = new URLSearchParams();
+      if (statusParam) params.set("status", statusParam);
+      if (filterParam) params.set("filter", filterParam);
+      if (pastEolParam) params.set("past_eol", pastEolParam);
+      const qs = params.toString();
+      const url = qs ? `/api/core/asset?${qs}` : "/api/core/asset";
       const response = await axios.get(url);
       return response.data.data;
     },
@@ -505,6 +511,29 @@ export function AssetsTable() {
           >
             Clear
           </Button>
+        )}
+        {(statusParam || filterParam || pastEolParam) && (
+          <div className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-2.5 py-1 text-xs">
+            <span className="font-medium text-foreground">
+              {statusParam
+                ? `Status: ${statusParam}`
+                : filterParam === "overdue_audit"
+                ? "Overdue Audits"
+                : filterParam === "due_audit"
+                ? "Audits Due"
+                : filterParam === "due_checkin"
+                ? "Checkins Due"
+                : pastEolParam
+                ? "Past EOL"
+                : filterParam}
+            </span>
+            <Link
+              href="/assets/listall"
+              className="text-muted-foreground hover:text-foreground underline ml-1"
+            >
+              Reset
+            </Link>
+          </div>
         )}
         <div className="flex items-center gap-2 ml-auto">
           <ExportButton

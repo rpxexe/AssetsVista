@@ -7,9 +7,12 @@ import { ensureMultiTenantIndexes } from "@/lib/userIndexes";
 import { AccessoriesModel } from "@/models/Accessories.model";
 import { ActionLogModel } from "@/models/ActionLog.model";
 import { AssetModel } from "@/models/Assets.model";
+import { CheckoutAcceptanceModel } from "@/models/CheckoutAcceptance.model";
+import { CheckoutRequestModel } from "@/models/CheckoutRequest.model";
 import { ComponentModel } from "@/models/Components.model";
 import { ConsumableModel } from "@/models/Consumables.model";
 import { LicenseModel } from "@/models/Licenses.model";
+import { MaintenanceModel } from "@/models/Maintenance.model";
 import { PeopleModel } from "@/models/Peoples.model";
 import { SettingsModel } from "@/models/Settings.model";
 import UserModel from "@/models/Users.model";
@@ -108,6 +111,9 @@ async function main() {
     ["Accessories", AccessoriesModel],
     ["Components", ComponentModel],
     ["Consumables", ConsumableModel],
+    ["Maintenances", MaintenanceModel],
+    ["CheckoutAcceptances", CheckoutAcceptanceModel],
+    ["CheckoutRequests", CheckoutRequestModel],
     ["ActionLogs", ActionLogModel],
     ["Settings", SettingsModel],
   ];
@@ -134,6 +140,9 @@ async function main() {
     accessoriesTotal,
     componentsTotal,
     consumablesTotal,
+    maintenancesTotal,
+    acceptancesTotal,
+    requestsTotal,
     actionLogsTotal,
     settingsTotal,
   ] = await Promise.all([
@@ -151,6 +160,9 @@ async function main() {
     AccessoriesModel.countDocuments({ userId: primaryWorkspaceId }),
     ComponentModel.countDocuments({ userId: primaryWorkspaceId }),
     ConsumableModel.countDocuments({ userId: primaryWorkspaceId }),
+    MaintenanceModel.countDocuments({ userId: primaryWorkspaceId }),
+    CheckoutAcceptanceModel.countDocuments({ userId: primaryWorkspaceId }),
+    CheckoutRequestModel.countDocuments({ userId: primaryWorkspaceId }),
     ActionLogModel.countDocuments({ userId: primaryWorkspaceId }),
     SettingsModel.countDocuments({ userId: primaryWorkspaceId }),
   ]);
@@ -174,6 +186,9 @@ async function main() {
     accessories: accessoriesTotal,
     components: componentsTotal,
     consumables: consumablesTotal,
+    maintenances: maintenancesTotal,
+    acceptances: acceptancesTotal,
+    requests: requestsTotal,
     actionLogs: actionLogsTotal,
     settings: settingsTotal,
   });

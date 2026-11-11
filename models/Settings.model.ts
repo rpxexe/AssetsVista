@@ -10,6 +10,10 @@ export interface SystemSettings extends Document {
   auto_increment_prefix: string;
   auto_increment_assets: boolean;
   audit_interval_months: number;
+  alert_threshold: number;
+  alert_interval: number;
+  show_alerts_in_menu: boolean;
+  dash_chart_type: "name" | "type";
   default_eula_text: string;
   alert_email?: string;
   setup_completed: boolean;
@@ -59,6 +63,25 @@ const SettingsSchema: Schema<SystemSettings> = new Schema(
       type: Number,
       default: 12,
       min: 1,
+    },
+    alert_threshold: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    alert_interval: {
+      type: Number,
+      default: 30,
+      min: 1,
+    },
+    show_alerts_in_menu: {
+      type: Boolean,
+      default: true,
+    },
+    dash_chart_type: {
+      type: String,
+      enum: ["name", "type"],
+      default: "name",
     },
     default_eula_text: {
       type: String,

@@ -4,9 +4,9 @@ import { defineModel } from "@/lib/defineModel";
 export interface ActionLog extends Document {
   userId?: string;
   item_id: mongoose.Types.ObjectId;
-  item_type: "Asset" | "License" | "Accessory" | "Consumable" | "Component" | "User" | "People";
+  item_type: "Asset" | "License" | "Accessory" | "Consumable" | "Component" | "User" | "People" | "Maintenance" | "CheckoutRequest";
   item_name?: string;
-  action_type: "checkout" | "checkin" | "create" | "update" | "delete" | "audit";
+  action_type: "checkout" | "checkin" | "create" | "update" | "delete" | "audit" | "accepted" | "declined" | "requested" | "maintenance";
   target_id?: mongoose.Types.ObjectId;
   target_type?: "People" | "Location" | "Asset" | null;
   target_name?: string;
@@ -30,7 +30,7 @@ const ActionLogSchema: Schema<ActionLog> = new Schema(
     item_type: {
       type: String,
       required: true,
-      enum: ["Asset", "License", "Accessory", "Consumable", "Component", "User", "People"],
+      enum: ["Asset", "License", "Accessory", "Consumable", "Component", "User", "People", "Maintenance", "CheckoutRequest"],
     },
     item_name: {
       type: String,
@@ -39,7 +39,7 @@ const ActionLogSchema: Schema<ActionLog> = new Schema(
     action_type: {
       type: String,
       required: true,
-      enum: ["checkout", "checkin", "create", "update", "delete", "audit"],
+      enum: ["checkout", "checkin", "create", "update", "delete", "audit", "accepted", "declined", "requested", "maintenance"],
     },
     target_id: {
       type: mongoose.Schema.Types.ObjectId,
@@ -76,6 +76,7 @@ const ActionLogSchema: Schema<ActionLog> = new Schema(
   }
 );
 
+ActionLogSchema.index({ userId: 1, createdAt: -1 });
 ActionLogSchema.index({ createdAt: -1 });
 ActionLogSchema.index({ item_id: 1, createdAt: -1 });
 ActionLogSchema.index({ target_id: 1, createdAt: -1 });

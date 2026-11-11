@@ -89,6 +89,7 @@ const ComponentSchema: Schema<Component> = new Schema(
   }
 );
 
+ComponentSchema.index({ userId: 1, createdAt: -1 });
 ComponentSchema.index({ createdAt: -1 });
 ComponentSchema.index({ name: 1 });
 ComponentSchema.index({ company: 1 });

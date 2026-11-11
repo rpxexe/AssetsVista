@@ -22,8 +22,18 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search");
+    const endDateWithin = Number(searchParams.get("end_date_within") || 0);
+    const withAssignments = searchParams.get("with_assignments") === "1";
 
     const filter: Record<string, any> = { userId: workspaceId };
+    if (endDateWithin > 0) {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const windowEnd = new Date(todayStart);
+      windowEnd.setDate(windowEnd.getDate() + endDateWithin);
+      windowEnd.setHours(23, 59, 59, 999);
+      filter.end_date = { $gte: todayStart, $lte: windowEnd };
+    }
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: "i" } },
@@ -131,11 +141,17 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    const finalPeople = withAssignments
+      ? peopleWithCounts.filter(
+          (p: any) => (p.assets_count || 0) > 0 || (p.licenses_count || 0) > 0
+        )
+      : peopleWithCounts;
+
     return NextResponse.json(
       {
         success: true,
         message: "People fetched successfully",
-        data: peopleWithCounts,
+        data: finalPeople,
       },
       { status: 200 }
     );
@@ -187,6 +203,8 @@ export async function POST(req: Request) {
       email: body.email?.trim() || undefined,
       phone: body.phone?.trim() || undefined,
       username,
+      start_date: body.start_date ? new Date(body.start_date) : undefined,
+      end_date: body.end_date ? new Date(body.end_date) : undefined,
       department:
         body.department && mongoose.Types.ObjectId.isValid(body.department)
           ? body.department

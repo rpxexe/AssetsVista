@@ -29,7 +29,6 @@ import React, {  useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import CategoryBox from "@/components/dropDowns/category.dropdown";
 import { useQueryClient } from "@tanstack/react-query";
@@ -49,6 +48,7 @@ const formSchema = z.object({
   model_no: z.string().nonempty({
     message: "Model Number can't be Empty",
   }),
+  min_amt: z.number().min(0).optional(),
   image: z.string().optional(),
 });
 
@@ -61,9 +61,10 @@ const AssetModelForm = () => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name:"",
-      model_no:"",
-      category:"",
+      name: "",
+      model_no: "",
+      category: "",
+      min_amt: 0,
       image: "",
     },
   });
@@ -77,6 +78,7 @@ const AssetModelForm = () => {
         name: values.name,
         model_no: values.model_no,
         categoryName: values.category,
+        min_amt: Number(values.min_amt) || 0,
         image: values.image || "",
       });
 
@@ -111,8 +113,7 @@ const AssetModelForm = () => {
           Add Asset Model
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <ScrollArea className="max-h-[calc(90vh-1rem)] w-full p-6">
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl">Create Asset Model</DialogTitle>
           </DialogHeader>
@@ -166,6 +167,26 @@ const AssetModelForm = () => {
 
               <FormField
                 control={form.control}
+                name="min_amt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Min. Stock Alert Quantity</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="0"
+                        type="number"
+                        min={0}
+                        value={field.value ?? 0}
+                        onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="image"
                 render={({ field }) => (
                   <FormItem>
@@ -201,7 +222,6 @@ const AssetModelForm = () => {
               </DialogFooter>
             </form>
           </Form>
-        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

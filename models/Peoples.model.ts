@@ -14,6 +14,8 @@ export interface People extends Document {
   location?: mongoose.Types.ObjectId;
   company?: mongoose.Types.ObjectId;
   employee_num?: string;
+  start_date?: Date;
+  end_date?: Date;
   notes?: string;
   image?: string;
 }
@@ -72,6 +74,12 @@ const PeopleSchema: Schema<People> = new Schema(
       type: String,
       trim: true,
     },
+    start_date: {
+      type: Date,
+    },
+    end_date: {
+      type: Date,
+    },
     notes: {
       type: String,
       trim: true,
@@ -90,6 +98,7 @@ const PeopleSchema: Schema<People> = new Schema(
 
 PeopleSchema.index({ userId: 1, createdAt: -1 });
 PeopleSchema.index({ userId: 1, username: 1 }, { unique: true });
+PeopleSchema.index({ userId: 1, end_date: 1 });
 PeopleSchema.index({ createdAt: -1 });
 PeopleSchema.index({ name: 1 });
 PeopleSchema.index({ email: 1 });

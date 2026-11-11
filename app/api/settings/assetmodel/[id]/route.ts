@@ -104,6 +104,7 @@ export async function PUT(
     if (data.name !== undefined) updateFields.name = data.name;
     if (data.model_no !== undefined) updateFields.model_no = data.model_no;
     if (data.eol_rate !== undefined) updateFields.eol_rate = Number(data.eol_rate);
+    if (data.min_amt !== undefined) updateFields.min_amt = Number(data.min_amt);
     if (data.image !== undefined) updateFields.image = data.image;
 
     const updatedAssetModel = await AssetModel_Model.findOneAndUpdate(

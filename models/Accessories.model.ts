@@ -89,6 +89,7 @@ const AccessoriesSchema: Schema<Accessories> = new Schema(
   }
 );
 
+AccessoriesSchema.index({ userId: 1, createdAt: -1 });
 AccessoriesSchema.index({ createdAt: -1 });
 AccessoriesSchema.index({ name: 1 });
 AccessoriesSchema.index({ company: 1 });

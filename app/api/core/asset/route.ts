@@ -219,8 +219,29 @@ export async function GET(req: NextRequest) {
     const statusParam = searchParams.get("status");
     const searchParam = searchParams.get("search");
     const assignedParam = searchParams.get("assigned");
+    const filterParam = searchParams.get("filter");
+    const pastEolParam = searchParams.get("past_eol");
 
     const filter: Record<string, any> = { userId: workspaceId };
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    if (filterParam === "due_audit") {
+      filter.$or = [
+        { next_audit_date: { $lt: todayStart } },
+        { next_audit_date: null, last_audit_date: null },
+      ];
+    } else if (filterParam === "overdue_audit") {
+      filter.next_audit_date = { $lt: todayStart };
+    } else if (filterParam === "due_checkin") {
+      filter.assigned_to = { $ne: null };
+      filter.expected_checkin_date = { $lt: todayStart };
+    }
+
+    if (pastEolParam === "1" || pastEolParam === "true") {
+      filter.eol_date = { $lt: todayStart };
+    }
 
     // Filter by status if provided (by name or ID or special status)
     if (statusParam) {
@@ -252,13 +273,19 @@ export async function GET(req: NextRequest) {
       filter.assigned_to = null;
     }
 
-    // Search keyword
+    // Search keyword (preserve existing $or filter if already present)
     if (searchParam) {
-      filter.$or = [
+      const searchCond = [
         { asset_tag: { $regex: searchParam, $options: "i" } },
         { serial_number: { $regex: searchParam, $options: "i" } },
         { asset_name: { $regex: searchParam, $options: "i" } },
       ];
+      if (filter.$or) {
+        filter.$and = [{ $or: filter.$or }, { $or: searchCond }];
+        delete filter.$or;
+      } else {
+        filter.$or = searchCond;
+      }
     }
 
     const query = [
