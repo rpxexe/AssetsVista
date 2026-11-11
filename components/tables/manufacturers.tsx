@@ -57,6 +57,8 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import ManufacturerEditForm from "../forms/settings/manufacturer/ManufacturerEditForm";
 import { ImageThumbnail } from "@/components/ImageThumbnail";
+import { TaxonomyBulkBar } from "@/components/tables/TaxonomyBulkBar";
+import type { ExportColumnDef } from "@/lib/exportData";
 
 export type Manufacturer = {
   _id: string;
@@ -67,6 +69,14 @@ export type Manufacturer = {
   support_email: string;
   image?: string;
 };
+
+const manufacturerExportColumns: ExportColumnDef<Manufacturer>[] = [
+  { header: "Manufacturer", accessor: (r) => r.name },
+  { header: "URL", accessor: (r) => r.url ?? "" },
+  { header: "Support URL", accessor: (r) => r.support_url ?? "" },
+  { header: "Support Phone", accessor: (r) => r.support_phone ?? "" },
+  { header: "Support Email", accessor: (r) => r.support_email ?? "" },
+];
 
 export function ManufacturerTable() {
   const { toast } = useToast();
@@ -294,6 +304,16 @@ export function ManufacturerTable() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <TaxonomyBulkBar
+        entity="manufacturer"
+        entityLabel="manufacturer"
+        filename="manufacturers_selected"
+        sheetName="Manufacturers"
+        selectedRows={table.getFilteredSelectedRowModel().rows.map((r) => r.original as Manufacturer)}
+        columns={manufacturerExportColumns}
+        onClearSelection={() => setRowSelection({})}
+        onSuccess={refetch}
+      />
       {isLoading ? (
         <div className="w-full h-full flex items-center justify-center">
           <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />

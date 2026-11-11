@@ -1,6 +1,6 @@
 import dbconnect from "@/lib/dbconnect";
 import { invalidateElasticIndexCache } from "@/lib/elasticSearch";
-import { getWorkspaceUserId } from "@/lib/serverAuth";
+import { requirePermission } from "@/lib/serverAuth";
 import { ActionLogModel } from "@/models/ActionLog.model";
 import { AssetModel } from "@/models/Assets.model";
 import { CheckoutAcceptanceModel } from "@/models/CheckoutAcceptance.model";
@@ -16,13 +16,14 @@ export async function POST(
   const { id } = await context.params;
   await dbconnect();
 
-  const workspaceId = await getWorkspaceUserId();
-  if (!workspaceId) {
-    return NextResponse.json(
-      { success: false, message: "Authentication required" },
-      { status: 401 }
-    );
+  const authResult = await requirePermission(
+    "canCheckoutCheckin",
+    "Only Admin or Assets User roles can checkout assets."
+  );
+  if ("error" in authResult) {
+    return authResult.error;
   }
+  const workspaceId = authResult.actor.workspaceId;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(

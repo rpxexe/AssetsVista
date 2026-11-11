@@ -21,7 +21,10 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionBar } from "@/components/BulkActionBar";
 import { Input } from "@/components/ui/input";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
 import {
   Table,
   TableBody,
@@ -51,6 +54,7 @@ export function CategoriesSummaryWidget() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("assets_count");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const bulk = useBulkSelection();
 
   const { data, isLoading, isFetching, refetch } = useQuery<{
     categories: CategorySummaryRow[];
@@ -103,6 +107,9 @@ export function CategoriesSummaryWidget() {
     { header: "Components", accessor: (r) => r.components_count },
   ];
 
+  const visibleIds = rows.map((r) => r._id);
+  const selectedRows = rows.filter((r) => bulk.isSelected(r._id));
+
   return (
     <div className="border rounded-[2em] bg-card p-5 flex flex-col justify-between h-full">
       <div>
@@ -125,6 +132,7 @@ export function CategoriesSummaryWidget() {
               filename="categories-summary"
               sheetName="Categories"
               data={rows}
+              selectedData={selectedRows}
               columns={exportCols}
               size="sm"
               variant="ghost"
@@ -163,6 +171,19 @@ export function CategoriesSummaryWidget() {
               )}
             </div>
 
+            <BulkActionBar
+              selectedCount={selectedRows.length}
+              entityLabel="category"
+              onClearSelection={bulk.clear}
+              exportConfig={{
+                filename: "categories-summary-selected",
+                sheetName: "Categories",
+                data: selectedRows,
+                columns: exportCols,
+              }}
+              actions={[]}
+            />
+
             <div className="max-h-[300px] overflow-auto border rounded-xl">
               {isLoading ? (
                 <div className="flex items-center justify-center py-12">
@@ -176,6 +197,13 @@ export function CategoriesSummaryWidget() {
                 <Table>
                   <TableHeader>
                     <TableRow className="text-xs">
+                      <TableHead className="w-8">
+                        <Checkbox
+                          checked={bulk.headerCheckState(visibleIds)}
+                          onCheckedChange={(c) => bulk.toggleAll(visibleIds, !!c)}
+                          aria-label="Select all categories"
+                        />
+                      </TableHead>
                       <TableHead>
                         <button
                           type="button"
@@ -220,6 +248,13 @@ export function CategoriesSummaryWidget() {
                   <TableBody>
                     {rows.map((cat) => (
                       <TableRow key={cat._id} className="text-xs">
+                        <TableCell>
+                          <Checkbox
+                            checked={bulk.isSelected(cat._id)}
+                            onCheckedChange={(c) => bulk.toggleOne(cat._id, !!c)}
+                            aria-label={`Select ${cat.name}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium truncate max-w-[150px]">
                           <Link
                             href="/settings/category"

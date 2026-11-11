@@ -16,6 +16,9 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionBar } from "@/components/BulkActionBar";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -46,6 +49,7 @@ export default function CustomAssetReportPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [companyFilter, setCompanyFilter] = useState("");
+  const bulk = useBulkSelection();
 
   const {
     data: assets = [],
@@ -164,7 +168,11 @@ export default function CustomAssetReportPage() {
     setStatusFilter("");
     setLocationFilter("");
     setCompanyFilter("");
+    bulk.clear();
   };
+
+  const visibleAssetIds = filteredAssets.map((a: any) => a._id);
+  const selectedAssets = filteredAssets.filter((a: any) => bulk.isSelected(a._id));
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 pt-0">
@@ -184,6 +192,7 @@ export default function CustomAssetReportPage() {
             filename="custom_asset_report"
             sheetName="Assets Report"
             data={filteredAssets}
+            selectedData={selectedAssets}
             allData={assets}
             columns={exportColumns}
             summarySheet={summarySheet}
@@ -282,6 +291,19 @@ export default function CustomAssetReportPage() {
         )}
       </div>
 
+      <BulkActionBar
+        selectedCount={selectedAssets.length}
+        entityLabel="asset"
+        onClearSelection={bulk.clear}
+        exportConfig={{
+          filename: "custom_asset_report_selected",
+          sheetName: "Assets Report",
+          data: selectedAssets,
+          columns: exportColumns,
+        }}
+        actions={[]}
+      />
+
       {/* Assets Table */}
       {isLoading ? (
         <div className="flex justify-center items-center py-16">
@@ -294,6 +316,13 @@ export default function CustomAssetReportPage() {
           <Table className="min-w-max w-full">
             <TableHeader className="bg-muted/50">
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={bulk.headerCheckState(visibleAssetIds)}
+                    onCheckedChange={(checked) => bulk.toggleAll(visibleAssetIds, !!checked)}
+                    aria-label="Select all assets"
+                  />
+                </TableHead>
                 <TableHead>Image</TableHead>
                 <TableHead>Asset Tag</TableHead>
                 <TableHead>Name</TableHead>
@@ -310,7 +339,7 @@ export default function CustomAssetReportPage() {
             <TableBody>
               {filteredAssets.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={12} className="h-24 text-center text-muted-foreground">
                     No assets matched your filter criteria.
                   </TableCell>
                 </TableRow>
@@ -325,6 +354,13 @@ export default function CustomAssetReportPage() {
 
                   return (
                     <TableRow key={asset._id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={bulk.isSelected(asset._id)}
+                          onCheckedChange={(checked) => bulk.toggleOne(asset._id, !!checked)}
+                          aria-label={`Select ${asset.asset_tag || asset.asset_name}`}
+                        />
+                      </TableCell>
                       <TableCell>
                         <ImageThumbnail
                           src={asset.image || asset.asset_model?.image}

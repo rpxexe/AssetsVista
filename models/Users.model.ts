@@ -1,13 +1,15 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 import { defineModel } from "@/lib/defineModel";
+import type { UserRole } from "@/lib/rbac";
 
-export type UserRole = "superadmin" | "admin" | "manager" | "user";
+export type { UserRole };
 
 export interface IUser extends Document {
   clerkId?: string;
   auth0Id?: string;
   workspaceId?: string;
   email: string;
+  passwordHash?: string;
   name?: string;
   first_name?: string;
   last_name?: string;
@@ -47,6 +49,10 @@ const UserSchema: Schema = new Schema(
       trim: true,
       lowercase: true,
     },
+    passwordHash: {
+      type: String,
+      select: false,
+    },
     name: {
       type: String,
       trim: true,
@@ -66,8 +72,8 @@ const UserSchema: Schema = new Schema(
     picture: String,
     role: {
       type: String,
-      enum: ["superadmin", "admin", "manager", "user"],
-      default: "user",
+      enum: ["admin", "assets_user", "requester", "superadmin", "manager", "user"],
+      default: "requester",
     },
     isActive: {
       type: Boolean,

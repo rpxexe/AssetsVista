@@ -20,6 +20,11 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionBar } from "@/components/BulkActionBar";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import { executeBulkAction } from "@/lib/bulkClient";
+import { getClientErrorMessage } from "@/lib/errorMessages";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -49,7 +54,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
-import { canAssignRole, ROLE_METADATA, USER_ROLES, UserRole } from "@/lib/rbac";
+import {
+  canAssignRole,
+  normalizeUserRole,
+  ROLE_METADATA,
+  USER_ROLES,
+  UserRole,
+} from "@/lib/rbac";
 import { ProvisionUserModal } from "./ProvisionUserModal";
 import { RolePermissionsDialog } from "./RolePermissionsDialog";
 import { ExportButton } from "@/components/ExportButton";
@@ -57,7 +68,6 @@ import type { ExportColumnDef, ExportSheet } from "@/lib/exportData";
 
 export interface ManagedUser {
   _id: string;
-  clerkId?: string;
   email: string;
   name?: string;
   username?: string;
@@ -78,10 +88,9 @@ interface UsersApiResponse {
   data: ManagedUser[];
   summary: {
     total: number;
-    superadmin: number;
     admin: number;
-    manager: number;
-    user: number;
+    assets_user: number;
+    requester: number;
     suspended: number;
   };
 }
@@ -94,6 +103,16 @@ export function UserRolesTable() {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const bulk = useBulkSelection();
+  const [bulkRole, setBulkRole] = useState<string>("requester");
+
+  const invalidateUsers = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["users"] }),
+      queryClient.invalidateQueries({ queryKey: ["people"] }),
+      queryClient.invalidateQueries({ queryKey: ["current-auth-user"] }),
+    ]);
+  };
 
   const { data, isLoading, isError } = useQuery<UsersApiResponse>({
     queryKey: ["users"],
@@ -103,10 +122,9 @@ export function UserRolesTable() {
         data: res.data.data || [],
         summary: res.data.summary || {
           total: 0,
-          superadmin: 0,
           admin: 0,
-          manager: 0,
-          user: 0,
+          assets_user: 0,
+          requester: 0,
           suspended: 0,
         },
       };
@@ -121,7 +139,10 @@ export function UserRolesTable() {
       { header: "Name", accessor: (u) => u.name || u.username || "-" },
       { header: "Email", accessor: (u) => u.email },
       { header: "Username", accessor: (u) => u.username || "-" },
-      { header: "Role", accessor: (u) => ROLE_METADATA[u.role]?.label || u.role },
+      {
+        header: "Role",
+        accessor: (u) => ROLE_METADATA[normalizeUserRole(u.role)].label,
+      },
       { header: "Account Status", accessor: (u) => (u.isActive === false ? "Suspended" : "Active") },
       { header: "Linked Directory Profile", accessor: (u) => u.personId?.name || "-" },
       { header: "Employee #", accessor: (u) => u.personId?.employee_num || "-" },
@@ -139,10 +160,9 @@ export function UserRolesTable() {
       headers: ["Role / Category", "User Count"],
       rows: [
         ["Total Accounts", summary?.total ?? users.length],
-        ["Super Admins", summary?.superadmin ?? 0],
         ["Admins", summary?.admin ?? 0],
-        ["Asset Managers", summary?.manager ?? 0],
-        ["Standard Users", summary?.user ?? 0],
+        ["Assets Users", summary?.assets_user ?? 0],
+        ["Request Users", summary?.requester ?? 0],
         ["Suspended Accounts", summary?.suspended ?? 0],
       ],
     }),
@@ -182,7 +202,7 @@ export function UserRolesTable() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["users"] }),
         queryClient.invalidateQueries({ queryKey: ["people"] }),
-        queryClient.invalidateQueries({ queryKey: ["current-db-user"] }),
+        queryClient.invalidateQueries({ queryKey: ["current-auth-user"] }),
       ]);
     } catch (err: any) {
       toast({
@@ -244,6 +264,30 @@ export function UserRolesTable() {
     }
   };
 
+  const visibleUserIds = filteredUsers.map((u) => u._id);
+  const selectedUsers = filteredUsers.filter((u) => bulk.isSelected(u._id));
+
+  const runUserBulk = async (action: string, payload?: Record<string, unknown>) => {
+    if (selectedUsers.length === 0) return;
+    try {
+      const res = await executeBulkAction({
+        entity: "user",
+        action,
+        ids: selectedUsers.map((u) => u._id),
+        payload,
+      });
+      toast({ title: "Bulk Account Update", description: res.message });
+      bulk.clear();
+      await invalidateUsers();
+    } catch (err) {
+      toast({
+        title: "Bulk Action Failed",
+        description: getClientErrorMessage(err, "Failed to update selected accounts."),
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Permission Banner when viewing as non-admin */}
@@ -253,24 +297,28 @@ export function UserRolesTable() {
           <p className="text-muted-foreground">
             You are currently viewing with the{" "}
             <strong className="text-foreground">{ROLE_METADATA[actorRole].label}</strong> role.
-            Admin or Super Admin privileges are required to modify user roles or suspend accounts.
+            Admin privileges are required to create users, modify roles, or suspend accounts.
           </p>
         </div>
       )}
 
       {/* Role Summary KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {[
           { key: "all", label: "All Users", value: summary?.total ?? 0, icon: Users },
+          { key: "admin", label: "Admins", value: summary?.admin ?? 0, icon: ShieldCheck },
           {
-            key: "superadmin",
-            label: "Super Admins",
-            value: summary?.superadmin ?? 0,
-            icon: ShieldCheck,
+            key: "assets_user",
+            label: "Assets Users",
+            value: summary?.assets_user ?? 0,
+            icon: UserCheck,
           },
-          { key: "admin", label: "Admins", value: summary?.admin ?? 0, icon: UserCheck },
-          { key: "manager", label: "Managers", value: summary?.manager ?? 0, icon: UserCheck },
-          { key: "user", label: "Standard Users", value: summary?.user ?? 0, icon: Users },
+          {
+            key: "requester",
+            label: "Request Users",
+            value: summary?.requester ?? 0,
+            icon: Users,
+          },
           { key: "suspended", label: "Suspended", value: summary?.suspended ?? 0, icon: Ban },
         ].map((card) => {
           const Icon = card.icon;
@@ -282,7 +330,7 @@ export function UserRolesTable() {
               onClick={() => setRoleFilter(card.key)}
               className={`p-3.5 rounded-xl border text-left transition-all ${
                 active
-                  ? "border-blue-600 bg-blue-50/70 dark:bg-blue-950/30 shadow-sm"
+                  ? "border-foreground bg-muted shadow-sm"
                   : "bg-card hover:bg-accent/50"
               }`}
             >
@@ -309,6 +357,7 @@ export function UserRolesTable() {
             filename="user_roles_access"
             sheetName="User Accounts"
             data={filteredUsers}
+            selectedData={selectedUsers}
             allData={users}
             columns={userExportColumns}
             summarySheet={roleSummarySheet}
@@ -320,6 +369,78 @@ export function UserRolesTable() {
           />
         </div>
       </div>
+
+      <BulkActionBar
+        selectedCount={selectedUsers.length}
+        entityLabel="user account"
+        onClearSelection={bulk.clear}
+        exportConfig={{
+          filename: "user_roles_access_selected",
+          sheetName: "User Accounts",
+          data: selectedUsers,
+          columns: userExportColumns,
+        }}
+        extraContent={
+          permissions.canManageRoles && canAssignRole(actorRole) ? (
+            <div className="flex items-center gap-1.5">
+              <Select value={bulkRole} onValueChange={setBulkRole}>
+                <SelectTrigger className="h-8 w-[150px] text-xs">
+                  <SelectValue placeholder="Set Role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {USER_ROLES.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {ROLE_METADATA[r].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs"
+                onClick={() => runUserBulk("role", { role: bulkRole })}
+              >
+                Assign Role
+              </Button>
+            </div>
+          ) : null
+        }
+        actions={
+          permissions.canManageRoles
+            ? [
+                {
+                  id: "bulk-activate-users",
+                  label: "Activate",
+                  icon: <UserCheck size={14} />,
+                  confirmTitle: `Activate ${selectedUsers.length} selected account(s)?`,
+                  onExecute: () => runUserBulk("activate"),
+                },
+                {
+                  id: "bulk-suspend-users",
+                  label: "Suspend",
+                  icon: <Ban size={14} />,
+                  variant: "secondary",
+                  confirmTitle: `Suspend ${selectedUsers.length} selected account(s)?`,
+                  confirmDescription:
+                    "Suspended accounts cannot sign in. Your own account and the last active Admin are protected.",
+                  onExecute: () => runUserBulk("suspend"),
+                },
+                {
+                  id: "bulk-delete-users",
+                  label: "Delete Selected",
+                  icon: <Trash2 size={14} />,
+                  variant: "destructive",
+                  confirmTitle: `Delete ${selectedUsers.length} selected login account(s)?`,
+                  confirmDescription:
+                    "Deleted users will lose login access. Your own account and the last active Admin cannot be deleted.",
+                  onExecute: () => runUserBulk("delete"),
+                },
+              ]
+            : []
+        }
+      />
 
       {/* Table */}
       {isLoading ? (
@@ -333,6 +454,13 @@ export function UserRolesTable() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={bulk.headerCheckState(visibleUserIds)}
+                    onCheckedChange={(checked) => bulk.toggleAll(visibleUserIds, !!checked)}
+                    aria-label="Select all user accounts"
+                  />
+                </TableHead>
                 <TableHead>User Account</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
@@ -344,14 +472,15 @@ export function UserRolesTable() {
             <TableBody>
               {filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                     No matching user accounts found.
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredUsers.map((u) => {
                   const isSelf = dbUser?._id === u._id;
-                  const meta = ROLE_METADATA[u.role] || ROLE_METADATA.user;
+                  const normalizedRole = normalizeUserRole(u.role);
+                  const meta = ROLE_METADATA[normalizedRole];
                   const initials = (u.name || u.email || "U")
                     .split(" ")
                     .map((s) => s[0])
@@ -359,11 +488,17 @@ export function UserRolesTable() {
                     .slice(0, 2)
                     .toUpperCase();
                   const canEditTarget =
-                    permissions.canManageRoles &&
-                    (u.role !== "superadmin" || actorRole === "superadmin");
+                    permissions.canManageRoles && canAssignRole(actorRole);
 
                   return (
                     <TableRow key={u._id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={bulk.isSelected(u._id)}
+                          onCheckedChange={(checked) => bulk.toggleOne(u._id, !!checked)}
+                          aria-label={`Select ${u.name || u.email}`}
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9">
@@ -387,7 +522,7 @@ export function UserRolesTable() {
                       <TableCell>
                         {canEditTarget ? (
                           <Select
-                            value={u.role}
+                            value={normalizedRole}
                             disabled={busyId === u._id}
                             onValueChange={(val) =>
                               handleRoleChange(u._id, val as UserRole)
@@ -397,9 +532,7 @@ export function UserRolesTable() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {USER_ROLES.filter(
-                                (r) => canAssignRole(actorRole, r) || r === u.role
-                              ).map((r) => (
+                              {USER_ROLES.map((r) => (
                                 <SelectItem key={r} value={r} className="text-xs">
                                   {ROLE_METADATA[r].label}
                                 </SelectItem>

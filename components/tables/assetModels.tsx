@@ -56,6 +56,8 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import AssetModelEditForm from "../forms/settings/assetmodel/AssetModelEditForm";
 import { ImageThumbnail } from "@/components/ImageThumbnail";
+import { TaxonomyBulkBar } from "@/components/tables/TaxonomyBulkBar";
+import type { ExportColumnDef } from "@/lib/exportData";
 
 
 export type AssetModel = {
@@ -68,6 +70,13 @@ export type AssetModel = {
     name:string;
   }
 };
+
+const assetModelExportColumns: ExportColumnDef<AssetModel>[] = [
+  { header: "Model Name", accessor: (r) => r.name },
+  { header: "Model No.", accessor: (r) => r.model_no },
+  { header: "Category", accessor: (r) => r.category?.name ?? "" },
+  { header: "Assets", accessor: (r) => r.assets ?? 0 },
+];
 
 export function AssetModelTable() {
   const { toast } = useToast();
@@ -276,6 +285,16 @@ export function AssetModelTable() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <TaxonomyBulkBar
+        entity="assetmodel"
+        entityLabel="asset model"
+        filename="asset_models_selected"
+        sheetName="Asset Models"
+        selectedRows={table.getFilteredSelectedRowModel().rows.map((r) => r.original as AssetModel)}
+        columns={assetModelExportColumns}
+        onClearSelection={() => setRowSelection({})}
+        onSuccess={refetch}
+      />
       {isLoading ? (
         <div className="w-full h-full flex items-center justify-center">
           <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />

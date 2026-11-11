@@ -1,6 +1,7 @@
 import dbconnect from "@/lib/dbconnect";
 import { apiErrorResponse } from "@/lib/apiError";
-import { canAssignRole, USER_ROLES, UserRole } from "@/lib/rbac";
+import { hashPassword } from "@/lib/password";
+import { canAssignRole, normalizeUserRole, USER_ROLES, UserRole } from "@/lib/rbac";
 import { getAuthenticatedActor } from "@/lib/serverAuth";
 import { invalidateElasticIndexCache } from "@/lib/elasticSearch";
 import { ensureCleanUserIndexes, isLegacyUserIndexError } from "@/lib/userIndexes";
@@ -23,6 +24,13 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    if (!actor.permissions.canManageRoles && !actor.permissions.canViewPeople) {
+      return NextResponse.json(
+        { success: false, message: "Forbidden: Insufficient permissions." },
+        { status: 403 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const roleFilter = searchParams.get("role");
 
@@ -33,54 +41,41 @@ export async function GET(req: NextRequest) {
       ],
     };
 
-    const filter: Record<string, unknown> = { ...workspaceMatch };
-    if (roleFilter && ALLOWED_ROLES.has(roleFilter)) {
-      filter.role = roleFilter;
-    }
-
-    const [users, roleAgg] = await Promise.all([
-      UserModel.find(filter)
-        .select("-__v")
-        .populate("personId", "name username email employee_num department location")
-        .sort({ lastLogin: -1 })
-        .lean(),
-      UserModel.aggregate([
-        { $match: workspaceMatch },
-        {
-          $group: {
-            _id: "$role",
-            count: { $sum: 1 },
-            suspended: {
-              $sum: { $cond: [{ $eq: ["$isActive", false] }, 1, 0] },
-            },
-          },
-        },
-      ]),
-    ]);
+    const rawUsers = await UserModel.find(workspaceMatch)
+      .select("-passwordHash -__v")
+      .populate("personId", "name username email employee_num department location")
+      .sort({ lastLogin: -1, createdAt: -1 })
+      .lean();
 
     const summary = {
       total: 0,
-      superadmin: 0,
       admin: 0,
-      manager: 0,
-      user: 0,
+      assets_user: 0,
+      requester: 0,
       suspended: 0,
     };
 
-    for (const row of roleAgg) {
-      const r = row._id as UserRole;
-      if (r in summary) {
-        (summary as Record<string, number>)[r] = row.count;
-      }
-      summary.total += row.count;
-      summary.suspended += row.suspended || 0;
-    }
+    const normalizedUsers = rawUsers.map((u: any) => {
+      const normalizedRole = normalizeUserRole(u.role);
+      summary.total += 1;
+      summary[normalizedRole] += 1;
+      if (u.isActive === false) summary.suspended += 1;
+      return {
+        ...u,
+        role: normalizedRole,
+      };
+    });
+
+    const filteredUsers =
+      roleFilter && ALLOWED_ROLES.has(roleFilter)
+        ? normalizedUsers.filter((u) => u.role === roleFilter)
+        : normalizedUsers;
 
     return NextResponse.json(
       {
         success: true,
         message: "Users fetched successfully",
-        data: users,
+        data: filteredUsers,
         summary,
       },
       { status: 200 }
@@ -98,7 +93,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: "Unauthorized: Admin or Super Admin role required to provision users.",
+          message: "Unauthorized: Admin role required to provision users.",
         },
         { status: 403 }
       );
@@ -106,7 +101,8 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const cleanEmail = body.email?.trim().toLowerCase();
-    const requestedRole = (body.role || "user") as UserRole;
+    const requestedRole = normalizeUserRole(body.role) as UserRole;
+    const rawPassword = typeof body.password === "string" ? body.password : "";
 
     if (!cleanEmail || !cleanEmail.includes("@")) {
       return NextResponse.json(
@@ -122,13 +118,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!canAssignRole(actor.role, requestedRole)) {
+    if (!canAssignRole(actor.role)) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Only Super Admins can assign the Super Admin role.",
-        },
+        { success: false, message: "Only Admins can provision user roles." },
         { status: 403 }
+      );
+    }
+
+    if (rawPassword && rawPassword.length < 6) {
+      return NextResponse.json(
+        { success: false, message: "Password must be at least 6 characters long." },
+        { status: 400 }
       );
     }
 
@@ -178,9 +178,12 @@ export async function POST(req: NextRequest) {
 
     await ensureCleanUserIndexes();
 
+    const passwordHash = rawPassword ? hashPassword(rawPassword) : undefined;
+
     const createProvisionedUser = () =>
       UserModel.create({
         email: cleanEmail,
+        ...(passwordHash ? { passwordHash } : {}),
         name: fullName,
         first_name: firstName || undefined,
         last_name: lastName || undefined,
@@ -189,7 +192,7 @@ export async function POST(req: NextRequest) {
         workspaceId: actor.workspaceId,
         isActive: body.isActive !== undefined ? Boolean(body.isActive) : true,
         personId: person._id,
-        emailVerified: false,
+        emailVerified: Boolean(passwordHash),
       });
 
     let newUser;
@@ -211,14 +214,19 @@ export async function POST(req: NextRequest) {
       item_name: `${fullName} (${cleanEmail})`,
       action_type: "create",
       admin_name: actor.dbUser.name || actor.dbUser.email,
-      notes: `Pre-provisioned user with role '${requestedRole}'`,
+      notes: `Provisioned user with role '${requestedRole}'`,
     }).catch(() => null);
+
+    const safeCreated = newUser.toObject();
+    delete safeCreated.passwordHash;
 
     return NextResponse.json(
       {
         success: true,
-        message: "User provisioned successfully",
-        data: newUser,
+        message: passwordHash
+          ? "Login user created and ready to sign in."
+          : "User provisioned (can set password via Create Account).",
+        data: safeCreated,
       },
       { status: 201 }
     );
@@ -235,14 +243,14 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: "Forbidden: Admin or Super Admin privileges required to manage roles.",
+          message: "Forbidden: Admin privileges required to manage roles.",
         },
         { status: 403 }
       );
     }
 
     const body = await req.json();
-    const { id, role, isActive } = body;
+    const { id, role, isActive, password } = body;
 
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
@@ -265,6 +273,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    const targetRole = normalizeUserRole(targetUser.role);
     const updateFields: Record<string, unknown> = {};
     const auditNotes: string[] = [];
 
@@ -275,32 +284,24 @@ export async function PATCH(req: NextRequest) {
           { status: 400 }
         );
       }
-      // Prevent admin from elevating to superadmin or modifying an existing superadmin
-      if (
-        !canAssignRole(actor.role, role as UserRole) ||
-        (targetUser.role === "superadmin" && actor.role !== "superadmin")
-      ) {
+      if (!canAssignRole(actor.role)) {
         return NextResponse.json(
-          {
-            success: false,
-            message: "Only Super Admins can assign or modify Super Admin accounts.",
-          },
+          { success: false, message: "Only Admins can change user roles." },
           { status: 403 }
         );
       }
 
-      // Guard: Do not allow demoting the last active superadmin in workspace
-      if (targetUser.role === "superadmin" && role !== "superadmin") {
-        const superadminCount = await UserModel.countDocuments({
+      if (targetRole === "admin" && role !== "admin") {
+        const adminCount = await UserModel.countDocuments({
           workspaceId: actor.workspaceId,
-          role: "superadmin",
+          role: { $in: ["admin", "superadmin"] },
           isActive: { $ne: false },
         });
-        if (superadminCount <= 1) {
+        if (adminCount <= 1) {
           return NextResponse.json(
             {
               success: false,
-              message: "Cannot demote the last active Super Admin.",
+              message: "Cannot demote the last active Admin.",
             },
             { status: 400 }
           );
@@ -308,20 +309,10 @@ export async function PATCH(req: NextRequest) {
       }
 
       updateFields.role = role;
-      auditNotes.push(`Role changed from '${targetUser.role}' to '${role}'`);
+      auditNotes.push(`Role changed from '${targetRole}' to '${role}'`);
     }
 
     if (isActive !== undefined) {
-      if (targetUser.role === "superadmin" && actor.role !== "superadmin") {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Only Super Admins can suspend/activate Super Admin accounts.",
-          },
-          { status: 403 }
-        );
-      }
-
       if (isActive === false) {
         if (targetUser._id.toString() === actor.dbUser._id) {
           return NextResponse.json(
@@ -330,17 +321,17 @@ export async function PATCH(req: NextRequest) {
           );
         }
 
-        if (targetUser.role === "superadmin") {
-          const superadminCount = await UserModel.countDocuments({
+        if (targetRole === "admin") {
+          const adminCount = await UserModel.countDocuments({
             workspaceId: actor.workspaceId,
-            role: "superadmin",
+            role: { $in: ["admin", "superadmin"] },
             isActive: { $ne: false },
           });
-          if (superadminCount <= 1) {
+          if (adminCount <= 1) {
             return NextResponse.json(
               {
                 success: false,
-                message: "Cannot suspend the last active Super Admin.",
+                message: "Cannot suspend the last active Admin.",
               },
               { status: 400 }
             );
@@ -350,6 +341,18 @@ export async function PATCH(req: NextRequest) {
 
       updateFields.isActive = Boolean(isActive);
       auditNotes.push(`Account ${isActive ? "activated" : "suspended"}`);
+    }
+
+    if (typeof password === "string" && password.length > 0) {
+      if (password.length < 6) {
+        return NextResponse.json(
+          { success: false, message: "New password must be at least 6 characters." },
+          { status: 400 }
+        );
+      }
+      updateFields.passwordHash = hashPassword(password);
+      updateFields.emailVerified = true;
+      auditNotes.push("Password updated by Admin");
     }
 
     if (Object.keys(updateFields).length === 0) {
@@ -364,7 +367,7 @@ export async function PATCH(req: NextRequest) {
       { $set: updateFields },
       { new: true }
     )
-      .select("-__v")
+      .select("-passwordHash -__v")
       .populate("personId", "name username email employee_num department location")
       .lean();
 
@@ -384,7 +387,7 @@ export async function PATCH(req: NextRequest) {
       {
         success: true,
         message: "User updated successfully",
-        data: updated,
+        data: updated ? { ...updated, role: normalizeUserRole(updated.role) } : null,
       },
       { status: 200 }
     );
@@ -435,22 +438,16 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    if (target.role === "superadmin" && actor.role !== "superadmin") {
-      return NextResponse.json(
-        { success: false, message: "Only Super Admins can delete Super Admin accounts." },
-        { status: 403 }
-      );
-    }
-
-    if (target.role === "superadmin") {
-      const superadminCount = await UserModel.countDocuments({
+    const targetRole = normalizeUserRole(target.role);
+    if (targetRole === "admin") {
+      const adminCount = await UserModel.countDocuments({
         workspaceId: actor.workspaceId,
-        role: "superadmin",
+        role: { $in: ["admin", "superadmin"] },
         isActive: { $ne: false },
       });
-      if (superadminCount <= 1) {
+      if (adminCount <= 1) {
         return NextResponse.json(
-          { success: false, message: "Cannot delete the last active Super Admin." },
+          { success: false, message: "Cannot delete the last active Admin." },
           { status: 400 }
         );
       }

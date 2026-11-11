@@ -1,3 +1,4 @@
+import { getWorkspaceUserId } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
 
 // import { EmailTemplate } from "@/components/email-template";
@@ -27,6 +28,14 @@ import { NextResponse } from "next/server";
 
 // Placeholder export to make this a valid route module
 export async function POST() {
+    const workspaceId = await getWorkspaceUserId();
+    if (!workspaceId) {
+        return NextResponse.json(
+            { success: false, message: "Authentication required" },
+            { status: 401 }
+        );
+    }
+
     return NextResponse.json(
         { message: "Send endpoint is not yet implemented" },
         { status: 501 }

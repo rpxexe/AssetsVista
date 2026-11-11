@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { Loader2, UserPlus } from "lucide-react";
+import { Eye, EyeOff, Loader2, UserPlus } from "lucide-react";
 
 import {
   Dialog,
@@ -41,8 +41,11 @@ import { ROLE_METADATA, USER_ROLES, canAssignRole, UserRole } from "@/lib/rbac";
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("Please enter a valid email address."),
+  password: z
+    .string()
+    .min(6, "Initial password must be at least 6 characters."),
   title: z.string().optional(),
-  role: z.enum(["superadmin", "admin", "manager", "user"]),
+  role: z.enum(["admin", "assets_user", "requester"]),
 });
 
 interface ProvisionUserModalProps {
@@ -53,6 +56,7 @@ interface ProvisionUserModalProps {
 export function ProvisionUserModal({ actorRole, disabled }: ProvisionUserModalProps) {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -61,8 +65,9 @@ export function ProvisionUserModal({ actorRole, disabled }: ProvisionUserModalPr
     defaultValues: {
       name: "",
       email: "",
+      password: "",
       title: "",
-      role: "user",
+      role: "requester",
     },
   });
 
@@ -71,10 +76,10 @@ export function ProvisionUserModal({ actorRole, disabled }: ProvisionUserModalPr
     try {
       const response = await axios.post("/api/users", values);
       toast({
-        title: "User Account Provisioned",
+        title: "Login Account Created",
         description:
           response.data?.message ||
-          `${values.name} added with ${ROLE_METADATA[values.role].label} role.`,
+          `${values.name} added as ${ROLE_METADATA[values.role].label}.`,
       });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["users"] }),
@@ -85,7 +90,7 @@ export function ProvisionUserModal({ actorRole, disabled }: ProvisionUserModalPr
       setOpen(false);
     } catch (err: any) {
       toast({
-        title: "Provisioning Failed",
+        title: "Creation Failed",
         description: err.response?.data?.message || "Failed to add login user.",
         variant: "destructive",
       });
@@ -99,22 +104,22 @@ export function ProvisionUserModal({ actorRole, disabled }: ProvisionUserModalPr
       <DialogTrigger asChild>
         <Button disabled={disabled} className="gap-2">
           <UserPlus className="h-4 w-4" />
-          Provision Login User
+          Add Login User
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[460px]">
+      <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5 text-blue-600" />
-            Provision Login User & Role
+            <UserPlus className="h-5 w-5 text-foreground" />
+            Create Role-Based User Account
           </DialogTitle>
           <DialogDescription>
-            Pre-assign an RBAC role for an employee email before or after they sign in.
+            Create an Admin, Assets User, or Request User with login credentials for this workspace.
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3.5">
             <FormField
               control={form.control}
               name="name"
@@ -145,12 +150,47 @@ export function ProvisionUserModal({ actorRole, disabled }: ProvisionUserModalPr
 
             <FormField
               control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Initial Password *</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="At least 6 characters"
+                        className="pr-10"
+                        {...field}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute right-0.5 top-0.5 h-8 w-8 text-muted-foreground hover:text-foreground"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Job Title</FormLabel>
+                  <FormLabel>Job Title (Optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="IT Asset Coordinator" {...field} />
+                    <Input placeholder="IT Operator / Employee" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -162,35 +202,38 @@ export function ProvisionUserModal({ actorRole, disabled }: ProvisionUserModalPr
               name="role"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Access Role *</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <FormLabel>Assigned Role *</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Select a role" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {USER_ROLES.filter((r) => canAssignRole(actorRole, r)).map((r) => (
+                      {USER_ROLES.filter(() => canAssignRole(actorRole)).map((r) => (
                         <SelectItem key={r} value={r}>
-                          {ROLE_METADATA[r].label} — {ROLE_METADATA[r].description.slice(0, 48)}...
+                          {ROLE_METADATA[r].label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    {ROLE_METADATA[field.value].description}
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <DialogFooter className="gap-2 pt-2">
+            <DialogFooter className="pt-2">
               <DialogClose asChild>
                 <Button type="button" variant="outline">
                   Cancel
                 </Button>
               </DialogClose>
-              <Button type="submit" disabled={submitting}>
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save User
+              <Button type="submit" disabled={submitting} className="gap-2">
+                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                {submitting ? "Creating..." : "Create Login User"}
               </Button>
             </DialogFooter>
           </form>
@@ -199,4 +242,3 @@ export function ProvisionUserModal({ actorRole, disabled }: ProvisionUserModalPr
     </Dialog>
   );
 }
-

@@ -20,6 +20,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +47,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ExportButton } from "@/components/ExportButton";
+import { BulkActionBar } from "@/components/BulkActionBar";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import { usePermissions } from "@/hooks/usePermissions";
+import { executeBulkAction } from "@/lib/bulkClient";
+import { getClientErrorMessage } from "@/lib/errorMessages";
 import type { ExportColumnDef } from "@/lib/exportData";
 
 interface MaintenanceRow {
@@ -89,7 +96,9 @@ function isOverdue(row: MaintenanceRow): boolean {
 
 export default function MaintenancesPage() {
   const { toast } = useToast();
+  const { permissions } = usePermissions();
   const queryClient = useQueryClient();
+  const bulk = useBulkSelection();
   const [statusTab, setStatusTab] = useState<"all" | "open" | "overdue" | "completed">("all");
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -265,6 +274,29 @@ export default function MaintenancesPage() {
     }
   };
 
+  const visibleMaintenanceIds = filtered.map((r) => r._id);
+  const selectedMaintenances = filtered.filter((r) => bulk.isSelected(r._id));
+
+  const runMaintenanceBulk = async (action: "complete" | "reopen" | "delete") => {
+    if (selectedMaintenances.length === 0) return;
+    try {
+      const res = await executeBulkAction({
+        entity: "maintenance",
+        action,
+        ids: selectedMaintenances.map((r) => r._id),
+      });
+      toast({ title: "Bulk Maintenance Update", description: res.message });
+      bulk.clear();
+      invalidateAll();
+    } catch (err) {
+      toast({
+        title: "Bulk Action Failed",
+        description: getClientErrorMessage(err, "Failed to update selected maintenance records."),
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
       <div className="border rounded-[2.5em] p-4 w-full flex flex-wrap items-center justify-between gap-3 bg-card">
@@ -356,23 +388,23 @@ export default function MaintenancesPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="m-start">Start Date</Label>
-                  <Input
+                  <DatePicker
                     id="m-start"
-                    type="date"
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={setStartDate}
+                    placeholder="Pick start date"
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="m-due">Expected Completion</Label>
-                  <Input
+                  <DatePicker
                     id="m-due"
-                    type="date"
                     value={expectedDate}
-                    onChange={(e) => setExpectedDate(e.target.value)}
+                    onChange={setExpectedDate}
+                    placeholder="Pick target date"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -401,13 +433,12 @@ export default function MaintenancesPage() {
 
               <div className="space-y-1.5">
                 <Label htmlFor="m-notes">Notes</Label>
-                <textarea
+                <Textarea
                   id="m-notes"
                   rows={3}
                   placeholder="Ticket reference, vendor RMA, diagnostic notes..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="flex min-h-[72px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </div>
 
@@ -454,6 +485,7 @@ export default function MaintenancesPage() {
             filename="maintenances"
             sheetName="Maintenances"
             data={filtered}
+            selectedData={selectedMaintenances}
             allData={rows}
             columns={exportColumns}
             size="sm"
@@ -461,10 +493,64 @@ export default function MaintenancesPage() {
         </div>
       </div>
 
+      <BulkActionBar
+        selectedCount={selectedMaintenances.length}
+        entityLabel="maintenance record"
+        onClearSelection={bulk.clear}
+        exportConfig={{
+          filename: "maintenances_selected",
+          sheetName: "Maintenances",
+          data: selectedMaintenances,
+          columns: exportColumns,
+        }}
+        actions={[
+          ...(permissions.canManageMaintenances
+            ? [
+                {
+                  id: "bulk-complete-maintenance",
+                  label: "Mark Complete",
+                  icon: <CheckCircle2 size={14} />,
+                  confirmTitle: `Mark ${selectedMaintenances.length} maintenance record(s) completed?`,
+                  onExecute: () => runMaintenanceBulk("complete"),
+                },
+                {
+                  id: "bulk-reopen-maintenance",
+                  label: "Reopen",
+                  icon: <RotateCcw size={14} />,
+                  confirmTitle: `Reopen ${selectedMaintenances.length} maintenance record(s)?`,
+                  onExecute: () => runMaintenanceBulk("reopen"),
+                },
+              ]
+            : []),
+          ...(permissions.canDeleteAssets
+            ? [
+                {
+                  id: "bulk-delete-maintenance",
+                  label: "Delete Selected",
+                  icon: <Trash2 size={14} />,
+                  variant: "destructive" as const,
+                  confirmTitle: `Delete ${selectedMaintenances.length} maintenance record(s)?`,
+                  confirmDescription: "Selected maintenance logs will be permanently deleted.",
+                  onExecute: () => runMaintenanceBulk("delete"),
+                },
+              ]
+            : []),
+        ]}
+      />
+
       <div className="border rounded-xl bg-card overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={bulk.headerCheckState(visibleMaintenanceIds)}
+                  onCheckedChange={(checked) =>
+                    bulk.toggleAll(visibleMaintenanceIds, !!checked)
+                  }
+                  aria-label="Select all maintenance records"
+                />
+              </TableHead>
               <TableHead>Asset</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Type</TableHead>
@@ -479,14 +565,14 @@ export default function MaintenancesPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
                   Loading maintenance logs...
                 </TableCell>
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-12 text-muted-foreground text-sm">
+                <TableCell colSpan={10} className="text-center py-12 text-muted-foreground text-sm">
                   No maintenance records found.
                 </TableCell>
               </TableRow>
@@ -495,6 +581,13 @@ export default function MaintenancesPage() {
                 const overdue = isOverdue(row);
                 return (
                   <TableRow key={row._id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={bulk.isSelected(row._id)}
+                        onCheckedChange={(checked) => bulk.toggleOne(row._id, !!checked)}
+                        aria-label={`Select ${row.title}`}
+                      />
+                    </TableCell>
                     <TableCell className="text-xs font-medium">
                       {row.asset?._id ? (
                         <Link

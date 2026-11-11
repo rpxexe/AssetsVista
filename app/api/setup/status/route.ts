@@ -56,12 +56,12 @@ export async function GET() {
         label: "MONGODB_URI Environment Variable",
         detail: process.env.MONGODB_URI ? "Configured" : "Missing in .env.local",
       },
-      clerkAuth: {
-        ok: Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY),
-        label: "Authentication Provider (Clerk)",
-        detail: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-          ? "Configured"
-          : "Publishable key not detected",
+      sessionAuth: {
+        ok: true,
+        label: "Role-Based Auth (Admin / Assets User / Request User)",
+        detail: process.env.AUTH_SECRET
+          ? "HTTP-only signed sessions configured (AUTH_SECRET set)"
+          : "HTTP-only signed sessions active (set AUTH_SECRET in prod)",
       },
       elasticSearch: {
         ok: true,
@@ -120,10 +120,10 @@ export async function GET() {
             label: "MONGODB_URI Environment Variable",
             detail: process.env.MONGODB_URI ? "Configured" : "Missing in .env.local",
           },
-          clerkAuth: {
-            ok: Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY),
-            label: "Authentication Provider (Clerk)",
-            detail: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? "Configured" : "Not configured",
+          sessionAuth: {
+            ok: true,
+            label: "Role-Based Auth (Admin / Assets User / Request User)",
+            detail: process.env.AUTH_SECRET ? "AUTH_SECRET set" : "Built-in active",
           },
           elasticSearch: {
             ok: true,

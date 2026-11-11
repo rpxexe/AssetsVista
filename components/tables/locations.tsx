@@ -57,6 +57,8 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import LocationEditForm from "../forms/settings/Location/LocationEditForm";
 import { ImageThumbnail } from "@/components/ImageThumbnail";
+import { TaxonomyBulkBar } from "@/components/tables/TaxonomyBulkBar";
+import type { ExportColumnDef } from "@/lib/exportData";
 
 
 export type Location = {
@@ -70,6 +72,16 @@ export type Location = {
   state: string;
   image?: string;
 };
+
+const locationExportColumns: ExportColumnDef<Location>[] = [
+  { header: "Location", accessor: (r) => r.name },
+  { header: "Address", accessor: (r) => r.address ?? "" },
+  { header: "City", accessor: (r) => r.city ?? "" },
+  { header: "State", accessor: (r) => r.state ?? "" },
+  { header: "Currency", accessor: (r) => r.currency ?? "" },
+  { header: "Departments", accessor: (r) => r.department ?? 0 },
+  { header: "Assets", accessor: (r) => r.assets ?? 0 },
+];
 export function LocationTable() {
   const { toast } = useToast();
 
@@ -305,6 +317,16 @@ export function LocationTable() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <TaxonomyBulkBar
+        entity="location"
+        entityLabel="location"
+        filename="locations_selected"
+        sheetName="Locations"
+        selectedRows={table.getFilteredSelectedRowModel().rows.map((r) => r.original as Location)}
+        columns={locationExportColumns}
+        onClearSelection={() => setRowSelection({})}
+        onSuccess={refetch}
+      />
       {isLoading ? (
         <div className="w-full h-full flex items-center justify-center">
           <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />

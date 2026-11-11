@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionBar } from "@/components/BulkActionBar";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,6 +37,7 @@ import type { ExportColumnDef, ExportSheet } from "@/lib/exportData";
 export default function LicenseReportPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const bulk = useBulkSelection();
 
   const {
     data,
@@ -143,6 +147,9 @@ export default function LicenseReportPage() {
     }
   };
 
+  const visibleIds = filteredItems.map((lic: any) => lic._id);
+  const selectedItems = filteredItems.filter((lic: any) => bulk.isSelected(lic._id));
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 pt-0">
       {/* Header */}
@@ -161,6 +168,7 @@ export default function LicenseReportPage() {
             filename="software_licenses_report"
             sheetName="Licenses Compliance"
             data={filteredItems}
+            selectedData={selectedItems}
             allData={items}
             columns={exportColumns}
             summarySheet={summarySheet}
@@ -276,6 +284,19 @@ export default function LicenseReportPage() {
         </div>
       </div>
 
+      <BulkActionBar
+        selectedCount={selectedItems.length}
+        entityLabel="license"
+        onClearSelection={bulk.clear}
+        exportConfig={{
+          filename: "software_licenses_report_selected",
+          sheetName: "Licenses Compliance",
+          data: selectedItems,
+          columns: exportColumns,
+        }}
+        actions={[]}
+      />
+
       {/* Table */}
       {isLoading ? (
         <div className="flex justify-center items-center py-16">
@@ -288,6 +309,13 @@ export default function LicenseReportPage() {
           <Table className="min-w-max w-full">
             <TableHeader className="bg-muted/50">
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={bulk.headerCheckState(visibleIds)}
+                    onCheckedChange={(checked) => bulk.toggleAll(visibleIds, !!checked)}
+                    aria-label="Select all licenses"
+                  />
+                </TableHead>
                 <TableHead>Software Name</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Manufacturer</TableHead>
@@ -303,13 +331,20 @@ export default function LicenseReportPage() {
             <TableBody>
               {filteredItems.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={11} className="h-24 text-center text-muted-foreground">
                     No software licenses found matching criteria.
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredItems.map((lic: any) => (
                   <TableRow key={lic._id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={bulk.isSelected(lic._id)}
+                        onCheckedChange={(checked) => bulk.toggleOne(lic._id, !!checked)}
+                        aria-label={`Select ${lic.name}`}
+                      />
+                    </TableCell>
                     <TableCell className="font-semibold">{lic.name}</TableCell>
                     <TableCell>{lic.category}</TableCell>
                     <TableCell>{lic.manufacturer}</TableCell>

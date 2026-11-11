@@ -1,16 +1,19 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import axios from "axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Check, ClipboardList, Loader2, Plus, Search, X } from "lucide-react";
+import { Check, ClipboardList, Loader2, Plus, Search, Trash2, X } from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +39,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ExportButton } from "@/components/ExportButton";
+import { BulkActionBar } from "@/components/BulkActionBar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import { executeBulkAction } from "@/lib/bulkClient";
+import { getClientErrorMessage } from "@/lib/errorMessages";
 import type { ExportColumnDef } from "@/lib/exportData";
 import type { RequestableItemType } from "@/models/CheckoutRequest.model";
 
@@ -68,15 +76,19 @@ const ITEM_TYPE_OPTIONS: { value: RequestableItemType; label: string; endpoint: 
   { value: "License", label: "License", endpoint: "/api/core/license" },
 ];
 
-export default function RequestsPage() {
+function RequestsPageContent() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const { permissions } = usePermissions();
+
   const [statusTab, setStatusTab] = useState<"pending" | "fulfilled" | "canceled" | "all">(
     "pending"
   );
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const bulk = useBulkSelection();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [itemType, setItemType] = useState<RequestableItemType>("Asset");
@@ -84,6 +96,21 @@ export default function RequestsPage() {
   const [requesterId, setRequesterId] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    if (!searchParams) return;
+    if (searchParams.get("create") === "1") {
+      const qType = searchParams.get("itemType") as RequestableItemType | null;
+      const qId = searchParams.get("itemId");
+      if (qType && ITEM_TYPE_OPTIONS.some((t) => t.value === qType)) {
+        setItemType(qType);
+      }
+      if (qId) {
+        setItemId(qId);
+      }
+      setDialogOpen(true);
+    }
+  }, [searchParams]);
 
   const { data: rows = [], isLoading } = useQuery<RequestRow[]>({
     queryKey: ["requests", statusTab],
@@ -117,7 +144,7 @@ export default function RequestsPage() {
       const res = await axios.get("/api/core/people");
       return res.data.data || [];
     },
-    enabled: dialogOpen,
+    enabled: dialogOpen && permissions.canFulfillRequests,
   });
 
   const filtered = useMemo(() => {
@@ -147,6 +174,7 @@ export default function RequestsPage() {
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["requests"] });
+    queryClient.invalidateQueries({ queryKey: ["requester-summary"] });
     queryClient.invalidateQueries({ queryKey: ["needs-attention"] });
     queryClient.invalidateQueries({ queryKey: ["dashboard-recent-activity"] });
   };
@@ -201,6 +229,34 @@ export default function RequestsPage() {
       });
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const visibleRequestIds = filtered.map((r) => r._id);
+  const selectedRequests = filtered.filter((r) => bulk.isSelected(r._id));
+
+  const runRequestBulk = async (action: "fulfill" | "cancel" | "delete") => {
+    if (selectedRequests.length === 0) return;
+    try {
+      const res = await executeBulkAction({
+        entity: "request",
+        action,
+        ids: selectedRequests.map((r) => r._id),
+      });
+      toast({ title: "Bulk Request Update", description: res.message });
+      bulk.clear();
+      invalidateAll();
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+      queryClient.invalidateQueries({ queryKey: ["licenses"] });
+      queryClient.invalidateQueries({ queryKey: ["accessories"] });
+      queryClient.invalidateQueries({ queryKey: ["consumables"] });
+      queryClient.invalidateQueries({ queryKey: ["components"] });
+    } catch (err) {
+      toast({
+        title: "Bulk Action Failed",
+        description: getClientErrorMessage(err, "Failed to update selected requests."),
+        variant: "destructive",
+      });
     }
   };
 
@@ -290,32 +346,35 @@ export default function RequestsPage() {
                 </Select>
               </div>
 
-              <div className="space-y-1.5">
-                <Label>Requester (Optional)</Label>
-                <Select value={requesterId} onValueChange={setRequesterId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Current signed-in user" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="self">Current Signed-In User</SelectItem>
-                    {people.map((p) => (
-                      <SelectItem key={p._id} value={p._id}>
-                        {p.name || [p.first_name, p.last_name].filter(Boolean).join(" ") || "User"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {permissions.canFulfillRequests && (
+                <div className="space-y-1.5">
+                  <Label>Requester (Optional)</Label>
+                  <Select value={requesterId} onValueChange={setRequesterId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Current signed-in user" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="self">Current Signed-In User</SelectItem>
+                      {people.map((p) => (
+                        <SelectItem key={p._id} value={p._id}>
+                          {p.name ||
+                            [p.first_name, p.last_name].filter(Boolean).join(" ") ||
+                            "User"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label htmlFor="req-notes">Justification / Notes</Label>
-                <textarea
+                <Textarea
                   id="req-notes"
                   rows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Business need, onboarding details, delivery location..."
-                  className="flex min-h-[72px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </div>
 
@@ -361,6 +420,7 @@ export default function RequestsPage() {
             filename="checkout-requests"
             sheetName="Requests"
             data={filtered}
+            selectedData={selectedRequests}
             allData={rows}
             columns={exportColumns}
             size="sm"
@@ -368,10 +428,66 @@ export default function RequestsPage() {
         </div>
       </div>
 
+      <BulkActionBar
+        selectedCount={selectedRequests.length}
+        entityLabel="request"
+        onClearSelection={bulk.clear}
+        exportConfig={{
+          filename: "checkout-requests-selected",
+          sheetName: "Requests",
+          data: selectedRequests,
+          columns: exportColumns,
+        }}
+        actions={[
+          ...(permissions.canFulfillRequests
+            ? [
+                {
+                  id: "bulk-fulfill-requests",
+                  label: "Fulfill Selected",
+                  icon: <Check size={14} />,
+                  confirmTitle: `Mark ${selectedRequests.length} selected request(s) fulfilled?`,
+                  confirmDescription:
+                    "Pending requests will be marked fulfilled. Already fulfilled or canceled requests are skipped.",
+                  onExecute: () => runRequestBulk("fulfill"),
+                },
+              ]
+            : []),
+          {
+            id: "bulk-cancel-requests",
+            label: "Cancel Selected",
+            icon: <X size={14} />,
+            confirmTitle: `Cancel ${selectedRequests.length} selected request(s)?`,
+            confirmDescription:
+              "Only eligible pending requests will be canceled.",
+            onExecute: () => runRequestBulk("cancel"),
+          },
+          ...(permissions.canDeleteAssets
+            ? [
+                {
+                  id: "bulk-delete-requests",
+                  label: "Delete Selected",
+                  icon: <Trash2 size={14} />,
+                  variant: "destructive" as const,
+                  confirmTitle: `Delete ${selectedRequests.length} selected request(s)?`,
+                  confirmDescription: "Selected request logs will be permanently deleted.",
+                  onExecute: () => runRequestBulk("delete"),
+                },
+              ]
+            : []),
+        ]}
+      />
+
       <div className="border rounded-xl bg-card overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={bulk.headerCheckState(visibleRequestIds)}
+                  onCheckedChange={(checked) => bulk.toggleAll(visibleRequestIds, !!checked)}
+                  aria-label="Select all requests"
+                />
+              </TableHead>
               <TableHead>Item</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Requester</TableHead>
@@ -385,20 +501,27 @@ export default function RequestsPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
                   Loading requests...
                 </TableCell>
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground text-sm">
+                <TableCell colSpan={9} className="text-center py-12 text-muted-foreground text-sm">
                   No requests found.
                 </TableCell>
               </TableRow>
             ) : (
               filtered.map((row) => (
                 <TableRow key={row._id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={bulk.isSelected(row._id)}
+                      onCheckedChange={(checked) => bulk.toggleOne(row._id, !!checked)}
+                      aria-label={`Select request ${row.item_name}`}
+                    />
+                  </TableCell>
                   <TableCell className="text-xs font-medium">
                     {row.item_type === "Asset" ? (
                       <Link
@@ -451,16 +574,18 @@ export default function RequestsPage() {
                   <TableCell className="text-right">
                     {row.status === "pending" ? (
                       <div className="inline-flex items-center gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={busyId === row._id}
-                          className="h-7 px-2 text-xs gap-1"
-                          onClick={() => handleAction(row._id, "fulfill")}
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                          Fulfill
-                        </Button>
+                        {permissions.canFulfillRequests && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={busyId === row._id}
+                            className="h-7 px-2 text-xs gap-1"
+                            onClick={() => handleAction(row._id, "fulfill")}
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                            Fulfill
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
@@ -485,6 +610,20 @@ export default function RequestsPage() {
         </Table>
       </div>
     </div>
+  );
+}
+
+export default function RequestsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <RequestsPageContent />
+    </Suspense>
   );
 }
 

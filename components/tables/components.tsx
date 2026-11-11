@@ -37,6 +37,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { ExportButton } from "@/components/ExportButton";
+import { BulkActionBar } from "@/components/BulkActionBar";
+import { executeBulkAction } from "@/lib/bulkClient";
+import { getClientErrorMessage } from "@/lib/errorMessages";
+import { usePermissions } from "@/hooks/usePermissions";
 import type { ExportColumnDef } from "@/lib/exportData";
 import { ImageThumbnail } from "@/components/ImageThumbnail";
 import ComponentEditForm from "../forms/Components/ComponentEditForm";
@@ -90,6 +94,7 @@ export type Component = {
 export function ComponentsTable() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { permissions } = usePermissions();
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -390,6 +395,58 @@ export function ComponentsTable() {
           </DropdownMenu>
         </div>
       </div>
+
+      {(() => {
+        const selected = table.getFilteredSelectedRowModel().rows.map((r) => r.original);
+        return (
+          <BulkActionBar
+            selectedCount={selected.length}
+            entityLabel="component"
+            onClearSelection={() => setRowSelection({})}
+            exportConfig={{
+              filename: "components_selected",
+              sheetName: "Selected Components",
+              data: selected,
+              columns: componentExportColumns,
+            }}
+            actions={
+              permissions.canDeleteAssets
+                ? [
+                    {
+                      id: "bulk-delete-components",
+                      label: "Delete Selected",
+                      icon: <Trash size={14} />,
+                      variant: "destructive",
+                      confirmTitle: `Delete ${selected.length} selected component(s)?`,
+                      onExecute: async () => {
+                        try {
+                          const res = await executeBulkAction({
+                            entity: "component",
+                            action: "delete",
+                            ids: selected.map((s) => s._id),
+                          });
+                          toast({ title: "Bulk Delete Complete", description: res.message });
+                          setRowSelection({});
+                          await Promise.all([
+                            refetch(),
+                            queryClient.invalidateQueries({ queryKey: ["counttotals"] }),
+                          ]);
+                        } catch (err) {
+                          toast({
+                            title: "Bulk Delete Failed",
+                            description: getClientErrorMessage(err, "Unable to delete components."),
+                            variant: "destructive",
+                          });
+                        }
+                      },
+                    },
+                  ]
+                : []
+            }
+          />
+        );
+      })()}
+
       {isLoading ? (
         <div className="w-full h-full flex items-center justify-center py-12">
           <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />

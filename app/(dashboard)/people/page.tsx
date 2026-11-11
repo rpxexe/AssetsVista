@@ -1,6 +1,7 @@
 "use client";
 
-import React, { Suspense, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import PeopleForm from "@/components/forms/People/PeopleForm";
 import { PeopleTable } from "@/components/tables/peoples";
 import { UserRolesTable } from "@/components/people/UserRolesTable";
@@ -9,10 +10,18 @@ import { ROLE_METADATA } from "@/lib/rbac";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ShieldCheck, Users } from "lucide-react";
 
-const PeoplePage = () => {
-  const [activeTab, setActiveTab] = useState<"directory" | "roles">("directory");
+function PeoplePageContent() {
+  const searchParams = useSearchParams();
+  const initialTab = searchParams?.get("tab") === "roles" ? "roles" : "directory";
+  const [activeTab, setActiveTab] = useState<"directory" | "roles">(initialTab);
   const { role, permissions } = usePermissions();
   const roleMeta = ROLE_METADATA[role];
+
+  useEffect(() => {
+    if (searchParams?.get("tab") === "roles") {
+      setActiveTab("roles");
+    }
+  }, [searchParams]);
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
@@ -83,6 +92,20 @@ const PeoplePage = () => {
         )}
       </div>
     </div>
+  );
+}
+
+const PeoplePage = () => {
+  return (
+    <Suspense
+      fallback={
+        <div className="w-full flex items-center justify-center p-12">
+          <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
+        </div>
+      }
+    >
+      <PeoplePageContent />
+    </Suspense>
   );
 };
 

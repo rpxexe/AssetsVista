@@ -110,12 +110,20 @@ const RadialGraph = () => {
                 ))}
             </Pie>
             <Tooltip
-              contentStyle={{
-                borderRadius: "10px",
-                fontSize: "12px",
-                backgroundColor: "hsl(var(--card))",
-                borderColor: "hsl(var(--border))",
-                color: "hsl(var(--foreground))",
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const entry = payload[0];
+                const item = entry.payload as Status;
+                return (
+                  <div className="flex items-center gap-2 rounded-lg border border-border bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-md">
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full border border-border"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="font-medium">{entry.name}:</span>
+                    <span className="font-semibold tabular-nums">{entry.value}</span>
+                  </div>
+                );
               }}
             />
           </PieChart>

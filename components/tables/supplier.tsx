@@ -57,6 +57,8 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import SupplierEditForm from "../forms/settings/suppliers/SupplierEditForm";
 import { ImageThumbnail } from "@/components/ImageThumbnail";
+import { TaxonomyBulkBar } from "@/components/tables/TaxonomyBulkBar";
+import type { ExportColumnDef } from "@/lib/exportData";
 
 
 export type Supplier = {
@@ -69,6 +71,15 @@ export type Supplier = {
   assets: number;
   image?: string;
 };
+
+const supplierExportColumns: ExportColumnDef<Supplier>[] = [
+  { header: "Supplier", accessor: (r) => r.name },
+  { header: "Contact Name", accessor: (r) => r.contact_name ?? "" },
+  { header: "Email", accessor: (r) => r.email ?? "" },
+  { header: "Phone", accessor: (r) => r.phone ?? "" },
+  { header: "Address", accessor: (r) => r.address ?? "" },
+  { header: "Assets", accessor: (r) => r.assets ?? 0 },
+];
 export function SupplierTable() {
   const { toast } = useToast();
 
@@ -311,6 +322,16 @@ export function SupplierTable() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <TaxonomyBulkBar
+        entity="supplier"
+        entityLabel="supplier"
+        filename="suppliers_selected"
+        sheetName="Suppliers"
+        selectedRows={table.getFilteredSelectedRowModel().rows.map((r) => r.original as Supplier)}
+        columns={supplierExportColumns}
+        onClearSelection={() => setRowSelection({})}
+        onSuccess={refetch}
+      />
       {isLoading ? (
         <div className="w-full h-full flex items-center justify-center">
           <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />

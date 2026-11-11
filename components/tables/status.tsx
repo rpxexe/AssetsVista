@@ -54,12 +54,19 @@ import {
 } from "../ui/select";
 
 import { useQuery } from "@tanstack/react-query";
+import { TaxonomyBulkBar } from "@/components/tables/TaxonomyBulkBar";
+import type { ExportColumnDef } from "@/lib/exportData";
 
 export type Status = {
   _id: string;
   name: string;
   assets: number;
 };
+
+const statusExportColumns: ExportColumnDef<Status>[] = [
+  { header: "Status Name", accessor: (r) => r.name },
+  { header: "Assets", accessor: (r) => r.assets ?? 0 },
+];
 
 export function StatusTable() {
   const { toast } = useToast();
@@ -247,6 +254,16 @@ export function StatusTable() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <TaxonomyBulkBar
+        entity="status"
+        entityLabel="status"
+        filename="statuses_selected"
+        sheetName="Statuses"
+        selectedRows={table.getFilteredSelectedRowModel().rows.map((r) => r.original as Status)}
+        columns={statusExportColumns}
+        onClearSelection={() => setRowSelection({})}
+        onSuccess={refetch}
+      />
       {isLoading ? (
         <div className="w-full h-full flex items-center justify-center">
           <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />

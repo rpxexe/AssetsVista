@@ -39,6 +39,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { ExportButton } from "@/components/ExportButton";
+import { BulkActionBar } from "@/components/BulkActionBar";
+import { executeBulkAction } from "@/lib/bulkClient";
+import { getClientErrorMessage } from "@/lib/errorMessages";
+import { usePermissions } from "@/hooks/usePermissions";
 import type { ExportColumnDef } from "@/lib/exportData";
 import { ImageThumbnail } from "@/components/ImageThumbnail";
 import LicenseEditForm from "../forms/Licenses/LicenseEditForm";
@@ -91,6 +95,7 @@ export type License = {
 export function LicenseTable() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { permissions } = usePermissions();
   const searchParams = useSearchParams();
   const statusParam = searchParams ? searchParams.get("status") : null;
 
@@ -463,6 +468,58 @@ export function LicenseTable() {
         </DropdownMenu>
         </div>
       </div>
+
+      {(() => {
+        const selected = table.getFilteredSelectedRowModel().rows.map((r) => r.original);
+        return (
+          <BulkActionBar
+            selectedCount={selected.length}
+            entityLabel="license"
+            onClearSelection={() => setRowSelection({})}
+            exportConfig={{
+              filename: "licenses_selected",
+              sheetName: "Selected Licenses",
+              data: selected,
+              columns: licenseExportColumns,
+            }}
+            actions={
+              permissions.canDeleteAssets
+                ? [
+                    {
+                      id: "bulk-delete-licenses",
+                      label: "Delete Selected",
+                      icon: <Trash size={14} />,
+                      variant: "destructive",
+                      confirmTitle: `Delete ${selected.length} selected license(s)?`,
+                      onExecute: async () => {
+                        try {
+                          const res = await executeBulkAction({
+                            entity: "license",
+                            action: "delete",
+                            ids: selected.map((s) => s._id),
+                          });
+                          toast({ title: "Bulk Delete Complete", description: res.message });
+                          setRowSelection({});
+                          await Promise.all([
+                            refetch(),
+                            queryClient.invalidateQueries({ queryKey: ["counttotals"] }),
+                          ]);
+                        } catch (err) {
+                          toast({
+                            title: "Bulk Delete Failed",
+                            description: getClientErrorMessage(err, "Unable to delete licenses."),
+                            variant: "destructive",
+                          });
+                        }
+                      },
+                    },
+                  ]
+                : []
+            }
+          />
+        );
+      })()}
+
       {isLoading ? (
         <div className="w-full h-full flex items-center justify-center">
           <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />

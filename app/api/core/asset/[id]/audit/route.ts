@@ -1,5 +1,5 @@
 import dbconnect from "@/lib/dbconnect";
-import { getWorkspaceUserId } from "@/lib/serverAuth";
+import { requirePermission } from "@/lib/serverAuth";
 import { AssetModel } from "@/models/Assets.model";
 import { ActionLogModel } from "@/models/ActionLog.model";
 import mongoose from "mongoose";
@@ -12,13 +12,14 @@ export async function POST(
   const { id } = await context.params;
   await dbconnect();
 
-  const workspaceId = await getWorkspaceUserId();
-  if (!workspaceId) {
-    return NextResponse.json(
-      { success: false, message: "Authentication required" },
-      { status: 401 }
-    );
+  const authResult = await requirePermission(
+    "canAuditAssets",
+    "Only Admin or Assets User roles can perform physical asset audits."
+  );
+  if ("error" in authResult) {
+    return authResult.error;
   }
+  const workspaceId = authResult.actor.workspaceId;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(

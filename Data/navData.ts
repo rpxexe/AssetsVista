@@ -126,6 +126,10 @@ export const data = {
       icon: Settings2,
       items: [
         {
+          title: "Admin Settings Hub",
+          url: "/settings",
+        },
+        {
           title: "Status Labels",
           url: "/settings/status",
         },
@@ -156,10 +160,6 @@ export const data = {
         {
           title: "Companies",
           url: "/settings/company",
-        },
-        {
-          title: "Setup Wizard",
-          url: "/setup",
         },
       ],
     },

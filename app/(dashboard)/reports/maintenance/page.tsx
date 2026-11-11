@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionBar } from "@/components/BulkActionBar";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -40,6 +43,7 @@ export default function MaintenanceReportPage() {
     "due_audit"
   );
   const [auditingId, setAuditingId] = useState<string | null>(null);
+  const bulk = useBulkSelection();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -155,6 +159,16 @@ export default function MaintenanceReportPage() {
     ],
   };
 
+  const selectedReportRows = activeExportConfig.data.filter((item: any) =>
+    bulk.isSelected(item._id)
+  );
+  const visibleReportIds = activeExportConfig.data.map((item: any) => item._id);
+
+  const handleTabChange = (tab: "due_audit" | "overdue_checkins" | "recent_audits") => {
+    setActiveTab(tab);
+    bulk.clear();
+  };
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 pt-0">
       {/* Header */}
@@ -173,6 +187,7 @@ export default function MaintenanceReportPage() {
             filename={activeExportConfig.filename}
             sheetName={activeExportConfig.sheetName}
             data={activeExportConfig.data}
+            selectedData={selectedReportRows}
             columns={activeExportConfig.columns}
             summarySheet={maintenanceSummarySheet}
             extraExcelOptions={[
@@ -278,7 +293,7 @@ export default function MaintenanceReportPage() {
         <Button
           variant={activeTab === "due_audit" ? "default" : "ghost"}
           className="rounded-b-none"
-          onClick={() => setActiveTab("due_audit")}
+          onClick={() => handleTabChange("due_audit")}
         >
           <ShieldCheck className="mr-2 h-4 w-4" />
           Due for Audit ({dueForAudit.length})
@@ -286,7 +301,7 @@ export default function MaintenanceReportPage() {
         <Button
           variant={activeTab === "overdue_checkins" ? "default" : "ghost"}
           className="rounded-b-none"
-          onClick={() => setActiveTab("overdue_checkins")}
+          onClick={() => handleTabChange("overdue_checkins")}
         >
           <Clock className="mr-2 h-4 w-4" />
           Overdue Check-ins ({overdueCheckins.length})
@@ -294,12 +309,25 @@ export default function MaintenanceReportPage() {
         <Button
           variant={activeTab === "recent_audits" ? "default" : "ghost"}
           className="rounded-b-none"
-          onClick={() => setActiveTab("recent_audits")}
+          onClick={() => handleTabChange("recent_audits")}
         >
           <History className="mr-2 h-4 w-4" />
           Audit History ({recentAudits.length})
         </Button>
       </div>
+
+      <BulkActionBar
+        selectedCount={selectedReportRows.length}
+        entityLabel="record"
+        onClearSelection={bulk.clear}
+        exportConfig={{
+          filename: `${activeExportConfig.filename}_selected`,
+          sheetName: activeExportConfig.sheetName,
+          data: selectedReportRows,
+          columns: activeExportConfig.columns,
+        }}
+        actions={[]}
+      />
 
       {/* Tab Content */}
       {isLoading ? (
@@ -313,6 +341,13 @@ export default function MaintenanceReportPage() {
           <Table className="min-w-max w-full">
             <TableHeader className="bg-muted/50">
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={bulk.headerCheckState(visibleReportIds)}
+                    onCheckedChange={(checked) => bulk.toggleAll(visibleReportIds, !!checked)}
+                    aria-label="Select all records"
+                  />
+                </TableHead>
                 <TableHead>Asset Tag</TableHead>
                 <TableHead>Asset Name</TableHead>
                 <TableHead>Model</TableHead>
@@ -326,7 +361,7 @@ export default function MaintenanceReportPage() {
             <TableBody>
               {dueForAudit.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center text-green-600 font-medium">
+                  <TableCell colSpan={9} className="h-24 text-center text-green-600 font-medium">
                     All assets are currently audited and up to date!
                   </TableCell>
                 </TableRow>
@@ -341,6 +376,13 @@ export default function MaintenanceReportPage() {
 
                   return (
                     <TableRow key={a._id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={bulk.isSelected(a._id)}
+                          onCheckedChange={(checked) => bulk.toggleOne(a._id, !!checked)}
+                          aria-label={`Select ${a.asset_tag || a.asset_name}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-mono font-semibold uppercase">
                         {a.asset_tag}
                       </TableCell>
@@ -386,6 +428,13 @@ export default function MaintenanceReportPage() {
           <Table className="min-w-max w-full">
             <TableHeader className="bg-muted/50">
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={bulk.headerCheckState(visibleReportIds)}
+                    onCheckedChange={(checked) => bulk.toggleAll(visibleReportIds, !!checked)}
+                    aria-label="Select all overdue checkins"
+                  />
+                </TableHead>
                 <TableHead>Asset Tag</TableHead>
                 <TableHead>Asset Name</TableHead>
                 <TableHead>Model</TableHead>
@@ -397,7 +446,7 @@ export default function MaintenanceReportPage() {
             <TableBody>
               {overdueCheckins.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                     No equipment currently overdue for check-in.
                   </TableCell>
                 </TableRow>
@@ -412,6 +461,13 @@ export default function MaintenanceReportPage() {
 
                   return (
                     <TableRow key={a._id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={bulk.isSelected(a._id)}
+                          onCheckedChange={(checked) => bulk.toggleOne(a._id, !!checked)}
+                          aria-label={`Select ${a.asset_tag || a.asset_name}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-mono font-semibold uppercase">
                         {a.asset_tag}
                       </TableCell>
@@ -436,6 +492,13 @@ export default function MaintenanceReportPage() {
           <Table className="min-w-max w-full">
             <TableHeader className="bg-muted/50">
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={bulk.headerCheckState(visibleReportIds)}
+                    onCheckedChange={(checked) => bulk.toggleAll(visibleReportIds, !!checked)}
+                    aria-label="Select all audit logs"
+                  />
+                </TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Item Audited</TableHead>
                 <TableHead>Auditor</TableHead>
@@ -445,13 +508,20 @@ export default function MaintenanceReportPage() {
             <TableBody>
               {recentAudits.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                     No audit records logged yet.
                   </TableCell>
                 </TableRow>
               ) : (
                 recentAudits.map((log: any) => (
                   <TableRow key={log._id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={bulk.isSelected(log._id)}
+                        onCheckedChange={(checked) => bulk.toggleOne(log._id, !!checked)}
+                        aria-label={`Select audit record ${log.item_name || log._id}`}
+                      />
+                    </TableCell>
                     <TableCell className="text-xs">
                       {log.createdAt ? format(new Date(log.createdAt), "PPp") : "-"}
                     </TableCell>

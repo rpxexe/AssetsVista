@@ -1,7 +1,7 @@
 import dbconnect from "@/lib/dbconnect";
 import { apiErrorResponse } from "@/lib/apiError";
 import { invalidateElasticIndexCache } from "@/lib/elasticSearch";
-import { getWorkspaceUserId } from "@/lib/serverAuth";
+import { getWorkspaceUserId, requirePermission } from "@/lib/serverAuth";
 import { ActionLogModel } from "@/models/ActionLog.model";
 import { AssetModel } from "@/models/Assets.model";
 import { AssetModel_Model } from "@/models/setting/AssetModels.model";
@@ -79,13 +79,14 @@ export async function PUT(
   const { id } = await context.params;
   await dbconnect();
 
-  const workspaceId = await getWorkspaceUserId();
-  if (!workspaceId) {
-    return NextResponse.json(
-      { success: false, message: "Authentication required" },
-      { status: 401 }
-    );
+  const authResult = await requirePermission(
+    "canCreateEditAssets",
+    "Only Admin or Assets User roles can modify assets."
+  );
+  if ("error" in authResult) {
+    return authResult.error;
   }
+  const workspaceId = authResult.actor.workspaceId;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(

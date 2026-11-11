@@ -1,7 +1,7 @@
 import dbconnect from "@/lib/dbconnect";
 import { apiErrorResponse } from "@/lib/apiError";
 import { invalidateElasticIndexCache } from "@/lib/elasticSearch";
-import { getWorkspaceUserId } from "@/lib/serverAuth";
+import { getAuthenticatedActor, requirePermission } from "@/lib/serverAuth";
 import { PeopleModel } from "@/models/Peoples.model";
 import { AssetModel } from "@/models/Assets.model";
 import { LicenseModel } from "@/models/Licenses.model";
@@ -16,11 +16,19 @@ export async function GET(
   const { id } = await context.params;
   await dbconnect();
 
-  const workspaceId = await getWorkspaceUserId();
-  if (!workspaceId) {
+  const actor = await getAuthenticatedActor();
+  if (!actor) {
     return NextResponse.json(
       { success: false, message: "Authentication required" },
       { status: 401 }
+    );
+  }
+  const workspaceId = actor.workspaceId;
+
+  if (!actor.permissions.canViewPeople && actor.dbUser.personId !== id) {
+    return NextResponse.json(
+      { success: false, message: "Forbidden: You can only view your own assigned profile." },
+      { status: 403 }
     );
   }
 
@@ -118,13 +126,14 @@ export async function PUT(
   const { id } = await context.params;
   await dbconnect();
 
-  const workspaceId = await getWorkspaceUserId();
-  if (!workspaceId) {
-    return NextResponse.json(
-      { success: false, message: "Authentication required" },
-      { status: 401 }
-    );
+  const authResult = await requirePermission(
+    "canManagePeople",
+    "Only Admins can update people records."
+  );
+  if ("error" in authResult) {
+    return authResult.error;
   }
+  const workspaceId = authResult.actor.workspaceId;
 
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(

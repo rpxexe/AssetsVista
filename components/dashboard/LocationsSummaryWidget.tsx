@@ -20,7 +20,10 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionBar } from "@/components/BulkActionBar";
 import { Input } from "@/components/ui/input";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
 import {
   Table,
   TableBody,
@@ -50,6 +53,7 @@ export function LocationsSummaryWidget() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("assets_count");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const bulk = useBulkSelection();
 
   const { data, isLoading, isFetching, refetch } = useQuery<{
     locations: LocationSummaryRow[];
@@ -96,6 +100,9 @@ export function LocationsSummaryWidget() {
     { header: "People", accessor: (r) => r.people_count },
   ];
 
+  const visibleIds = rows.map((r) => r._id);
+  const selectedRows = rows.filter((r) => bulk.isSelected(r._id));
+
   return (
     <div className="border rounded-[2em] bg-card p-5 flex flex-col justify-between h-full">
       <div>
@@ -118,6 +125,7 @@ export function LocationsSummaryWidget() {
               filename="locations-summary"
               sheetName="Locations"
               data={rows}
+              selectedData={selectedRows}
               columns={exportCols}
               size="sm"
               variant="ghost"
@@ -156,6 +164,19 @@ export function LocationsSummaryWidget() {
               )}
             </div>
 
+            <BulkActionBar
+              selectedCount={selectedRows.length}
+              entityLabel="location"
+              onClearSelection={bulk.clear}
+              exportConfig={{
+                filename: "locations-summary-selected",
+                sheetName: "Locations",
+                data: selectedRows,
+                columns: exportCols,
+              }}
+              actions={[]}
+            />
+
             <div className="max-h-[300px] overflow-auto border rounded-xl">
               {isLoading ? (
                 <div className="flex items-center justify-center py-12">
@@ -169,6 +190,13 @@ export function LocationsSummaryWidget() {
                 <Table>
                   <TableHeader>
                     <TableRow className="text-xs">
+                      <TableHead className="w-8">
+                        <Checkbox
+                          checked={bulk.headerCheckState(visibleIds)}
+                          onCheckedChange={(c) => bulk.toggleAll(visibleIds, !!c)}
+                          aria-label="Select all locations"
+                        />
+                      </TableHead>
                       <TableHead>
                         <button
                           type="button"
@@ -213,6 +241,13 @@ export function LocationsSummaryWidget() {
                   <TableBody>
                     {rows.map((loc) => (
                       <TableRow key={loc._id} className="text-xs">
+                        <TableCell>
+                          <Checkbox
+                            checked={bulk.isSelected(loc._id)}
+                            onCheckedChange={(c) => bulk.toggleOne(loc._id, !!c)}
+                            aria-label={`Select ${loc.name}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium truncate max-w-[160px]">
                           <Link
                             href={`/settings/location`}
